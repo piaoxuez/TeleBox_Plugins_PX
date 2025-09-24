@@ -11,8 +11,8 @@
         "url": "https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/trace/trace.ts?raw=true",
         "desc": "表情追踪升级版，支持会员emoji，以及小丑模式 便便模式等"
     },
-    "tpm": {
-        "url": "https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/tpm/tpm.ts?raw=true",
+    "tpmx": {
+        "url": "https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/tpmx/tpmx.ts?raw=true",
         "desc": "管理器，加入了自己的源"
     }
 }

@@ -27,7 +27,7 @@ const PLUGIN_PATH = path.join(process.cwd(), "plugins");
 
 // 初始化数据库 (并迁移旧结构 { plugins: {...} } 到扁平结构)
 async function getDatabase() {
-  const filePath = path.join(createDirectoryInAssets("tpm"), "plugins.json");
+  const filePath = path.join(createDirectoryInAssets("tpmx"), "plugins.json");
   const db = await JSONFilePreset<Database>(filePath, {});
   return db;
 }
@@ -58,10 +58,10 @@ async function installRemotePlugin(plugin: string, msg: Api.Message) {
       if (customResponse.status === 200) {
         customRes = customResponse;
       } else {
-        console.log("[TPM] 自定义插件库获取失败，将仅使用官方库");
+        console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库");
       }
     } catch (customError) {
-      console.log("[TPM] 自定义插件库获取失败，将仅使用官方库:", customError);
+      console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库:", customError);
     }
 
     // 合并两个插件库的数据（自定义优先）
@@ -90,12 +90,12 @@ async function installRemotePlugin(plugin: string, msg: Api.Message) {
         .slice(0, -5);
       const backupPath = path.join(cacheDir, `${plugin}_${timestamp}.ts`);
       fs.copyFileSync(filePath, backupPath);
-      console.log(`[TPM] 旧插件已转移到缓存: ${backupPath}`);
+      console.log(`[TPMX] 旧插件已转移到缓存: ${backupPath}`);
     }
 
     if (fs.existsSync(oldBackupPath)) {
       fs.unlinkSync(oldBackupPath);
-      console.log(`[TPM] 已清理旧备份文件: ${oldBackupPath}`);
+      console.log(`[TPMX] 已清理旧备份文件: ${oldBackupPath}`);
     }
 
     fs.writeFileSync(filePath, response.data);
@@ -104,9 +104,9 @@ async function installRemotePlugin(plugin: string, msg: Api.Message) {
       const db = await getDatabase();
       db.data[plugin] = { ...pluginData, _updatedAt: Date.now() };
       await db.write();
-      console.log(`[TPM] 已记录插件信息到数据库: ${plugin}`);
+      console.log(`[TPMX] 已记录插件信息到数据库: ${plugin}`);
     } catch (error) {
-      console.error(`[TPM] 记录插件信息失败: ${error}`);
+      console.error(`[TPMX] 记录插件信息失败: ${error}`);
     }
 
     await msg.edit({ text: `插件 ${plugin} 已安装并加载成功` });
@@ -137,10 +137,10 @@ async function installAllPlugins(msg: Api.Message) {
       if (customResponse.status === 200) {
         customRes = customResponse;
       } else {
-        console.log("[TPM] 自定义插件库获取失败，将仅使用官方库");
+        console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库");
       }
     } catch (customError) {
-      console.log("[TPM] 自定义插件库获取失败，将仅使用官方库:", customError);
+      console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库:", customError);
     }
 
     // 合并两个插件库的数据（自定义优先）
@@ -201,11 +201,11 @@ async function installAllPlugins(msg: Api.Message) {
             .slice(0, -5);
           const backupPath = path.join(cacheDir, `${plugin}_${timestamp}.ts`);
           fs.copyFileSync(filePath, backupPath);
-          console.log(`[TPM] 旧插件已转移到缓存: ${backupPath}`);
+          console.log(`[TPMX] 旧插件已转移到缓存: ${backupPath}`);
         }
         if (fs.existsSync(oldBackupPath)) {
           fs.unlinkSync(oldBackupPath);
-          console.log(`[TPM] 已清理旧备份文件: ${oldBackupPath}`);
+          console.log(`[TPMX] 已清理旧备份文件: ${oldBackupPath}`);
         }
 
         fs.writeFileSync(filePath, response.data);
@@ -218,9 +218,9 @@ async function installAllPlugins(msg: Api.Message) {
             _updatedAt: Date.now(),
           };
           await db.write();
-          console.log(`[TPM] 已记录插件信息到数据库: ${plugin}`);
+          console.log(`[TPMX] 已记录插件信息到数据库: ${plugin}`);
         } catch (dbError) {
-          console.error(`[TPM] 记录插件信息失败: ${dbError}`);
+          console.error(`[TPMX] 记录插件信息失败: ${dbError}`);
         }
 
         installedCount++;
@@ -228,14 +228,14 @@ async function installAllPlugins(msg: Api.Message) {
       } catch (error) {
         failedCount++;
         failedPlugins.push(`${plugin} (${error})`);
-        console.error(`[TPM] 安装插件 ${plugin} 失败:`, error);
+        console.error(`[TPMX] 安装插件 ${plugin} 失败:`, error);
       }
     }
 
     try {
       await loadPlugins();
     } catch (error) {
-      console.error("[TPM] 重新加载插件失败:", error);
+      console.error("[TPMX] 重新加载插件失败:", error);
     }
 
     const successBar = generateProgressBar(100);
@@ -253,7 +253,7 @@ async function installAllPlugins(msg: Api.Message) {
     await msg.edit({ text: resultMsg, parseMode: "html" });
   } catch (error) {
     await msg.edit({ text: `❌ 批量安装失败: ${error}` });
-    console.error("[TPM] 批量安装插件失败:", error);
+    console.error("[TPMX] 批量安装插件失败:", error);
   }
 }
 
@@ -287,10 +287,10 @@ async function installMultiplePlugins(pluginNames: string[], msg: Api.Message) {
       if (customResponse.status === 200) {
         customRes = customResponse;
       } else {
-        console.log("[TPM] 自定义插件库获取失败，将仅使用官方库");
+        console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库");
       }
     } catch (customError) {
-      console.log("[TPM] 自定义插件库获取失败，将仅使用官方库:", customError);
+      console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库:", customError);
     }
 
     // 合并两个插件库的数据（自定义优先）
@@ -358,13 +358,13 @@ async function installMultiplePlugins(pluginNames: string[], msg: Api.Message) {
             `${pluginName}_${timestamp}.ts`
           );
           fs.copyFileSync(filePath, backupPath);
-          console.log(`[TPM] 旧插件已转移到缓存: ${backupPath}`);
+          console.log(`[TPMX] 旧插件已转移到缓存: ${backupPath}`);
         }
 
         // 清理旧备份文件
         if (fs.existsSync(oldBackupPath)) {
           fs.unlinkSync(oldBackupPath);
-          console.log(`[TPM] 已清理旧备份文件: ${oldBackupPath}`);
+          console.log(`[TPMX] 已清理旧备份文件: ${oldBackupPath}`);
         }
 
         // 写入新插件文件
@@ -379,9 +379,9 @@ async function installMultiplePlugins(pluginNames: string[], msg: Api.Message) {
             _updatedAt: Date.now(),
           };
           await db.write();
-          console.log(`[TPM] 已记录插件信息到数据库: ${pluginName}`);
+          console.log(`[TPMX] 已记录插件信息到数据库: ${pluginName}`);
         } catch (dbError) {
-          console.error(`[TPM] 记录插件信息失败: ${dbError}`);
+          console.error(`[TPMX] 记录插件信息失败: ${dbError}`);
         }
 
         installedCount++;
@@ -389,7 +389,7 @@ async function installMultiplePlugins(pluginNames: string[], msg: Api.Message) {
       } catch (error) {
         failedCount++;
         failedPlugins.push(`${pluginName} (${error})`);
-        console.error(`[TPM] 安装插件 ${pluginName} 失败:`, error);
+        console.error(`[TPMX] 安装插件 ${pluginName} 失败:`, error);
       }
     }
 
@@ -397,7 +397,7 @@ async function installMultiplePlugins(pluginNames: string[], msg: Api.Message) {
     try {
       await loadPlugins();
     } catch (error) {
-      console.error("[TPM] 重新加载插件失败:", error);
+      console.error("[TPMX] 重新加载插件失败:", error);
     }
 
     // 生成结果消息
@@ -429,7 +429,7 @@ async function installMultiplePlugins(pluginNames: string[], msg: Api.Message) {
     await msg.edit({ text: resultMsg, parseMode: "html" });
   } catch (error) {
     await msg.edit({ text: `❌ 批量安装失败: ${error}` });
-    console.error("[TPM] 批量安装插件失败:", error);
+    console.error("[TPMX] 批量安装插件失败:", error);
   }
 }
 
@@ -459,11 +459,11 @@ async function installPlugin(args: string[], msg: Api.Message) {
           if (db.data[pluginName]) {
             delete db.data[pluginName];
             await db.write();
-            overrideMessage = `\n⚠️ 已覆盖之前已安装的远程插件\n若需保持更新, 请 <code>${mainPrefix}tpm i ${pluginName}</code>`;
-            console.log(`[TPM] 已从数据库中清除同名插件记录: ${pluginName}`);
+            overrideMessage = `\n⚠️ 已覆盖之前已安装的远程插件\n若需保持更新, 请 <code>${mainPrefix}tpmx i ${pluginName}</code>`;
+            console.log(`[TPMX] 已从数据库中清除同名插件记录: ${pluginName}`);
           }
         } catch (error) {
-          console.error(`[TPM] 清除数据库记录失败: ${error}`);
+          console.error(`[TPMX] 清除数据库记录失败: ${error}`);
         }
 
         await msg.client?.downloadMedia(replied, { outputFile: filePath });
@@ -476,7 +476,7 @@ async function installPlugin(args: string[], msg: Api.Message) {
         await msg.edit({ text: "请回复一个插件文件" });
       }
     } else {
-      await msg.edit({ text: "请回复某个插件文件或提供 tpm 包名" });
+      await msg.edit({ text: "请回复某个插件文件或提供 tpmx 包名" });
     }
   } else {
     // 获取所有插件名称参数（从args[1]开始）
@@ -508,10 +508,10 @@ async function uninstallPlugin(plugin: string, msg: Api.Message) {
       if (db.data[plugin]) {
         delete db.data[plugin];
         await db.write();
-        console.log(`[TPM] 已从数据库中删除插件记录: ${plugin}`);
+        console.log(`[TPMX] 已从数据库中删除插件记录: ${plugin}`);
       }
     } catch (error) {
-      console.error(`[TPM] 删除插件数据库记录失败: ${error}`);
+      console.error(`[TPMX] 删除插件数据库记录失败: ${error}`);
     }
     await msg.edit({ text: `插件 ${plugin} 已卸载` });
   } else {
@@ -565,12 +565,12 @@ async function uninstallMultiplePlugins(
           // 从数据库中删除记录
           if (db.data[trimmedName]) {
             delete db.data[trimmedName];
-            console.log(`[TPM] 已从数据库中删除插件记录: ${trimmedName}`);
+            console.log(`[TPMX] 已从数据库中删除插件记录: ${trimmedName}`);
           }
 
           results.push({ name: trimmedName, success: true });
         } catch (error) {
-          console.error(`[TPM] 卸载插件 ${trimmedName} 失败:`, error);
+          console.error(`[TPMX] 卸载插件 ${trimmedName} 失败:`, error);
           results.push({
             name: trimmedName,
             success: false,
@@ -600,7 +600,7 @@ async function uninstallMultiplePlugins(
     // 保存数据库更改
     await db.write();
   } catch (error) {
-    console.error(`[TPM] 批量卸载过程中发生错误:`, error);
+    console.error(`[TPMX] 批量卸载过程中发生错误:`, error);
     await msg.edit({
       text: `批量卸载过程中发生错误: ${error instanceof Error ? error.message : String(error)
         }`,
@@ -677,15 +677,17 @@ async function search(msg: Api.Message) {
       if (customResponse.status === 200) {
         customRes = customResponse;
       } else {
-        console.log("[TPM] 自定义插件库获取失败，将仅使用官方库");
+        console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库");
       }
     } catch (customError) {
-      console.log("[TPM] 自定义插件库获取失败，将仅使用官方库:", customError);
+      console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库:", customError);
     }
 
     // 合并两个插件库的数据（自定义优先）
     const mergedPlugins = { ...officialRes.data, ...customRes.data };
     const pluginNames = Object.keys(mergedPlugins);
+    console.log("official plugins: ", Object.keys(officialRes.data));
+    console.log("custom plugins: ", Object.keys(customRes.data));
 
     // 获取本地插件文件列表
     const localPlugins = new Set<string>();
@@ -697,7 +699,7 @@ async function search(msg: Api.Message) {
         }
       });
     } catch (error) {
-      console.error("[TPM] 读取本地插件失败:", error);
+      console.error("[TPMX] 读取本地插件失败:", error);
     }
 
     // 获取数据库记录
@@ -748,13 +750,13 @@ async function search(msg: Api.Message) {
 
     const installTip =
       `\n💡 <b>安装方法:</b>\n` +
-      `• <code>${mainPrefix}tpm i &lt;插件名&gt;</code> - 安装单个插件\n` +
-      `• <code>${mainPrefix}tpm i &lt;插件名1&gt; &lt;插件名2&gt;</code> - 安装多个插件\n` +
-      `• <code>${mainPrefix}tpm i all</code> - 一键安装全部远程插件\n` +
-      `• <code>${mainPrefix}tpm update</code> - 一键更新所有已安装的远程插件\n` +
-      `• <code>${mainPrefix}tpm ls</code> - 查看已安装记录\n` +
-      `• <code>${mainPrefix}tpm rm &lt;插件名&gt;</code> - 卸载单个插件\n` +
-      `• <code>${mainPrefix}tpm rm &lt;插件名1&gt; &lt;插件名2&gt;</code> - 卸载多个插件`;
+      `• <code>${mainPrefix}tpmx i &lt;插件名&gt;</code> - 安装单个插件\n` +
+      `• <code>${mainPrefix}tpmx i &lt;插件名1&gt; &lt;插件名2&gt;</code> - 安装多个插件\n` +
+      `• <code>${mainPrefix}tpmx i all</code> - 一键安装全部远程插件\n` +
+      `• <code>${mainPrefix}tpmx update</code> - 一键更新所有已安装的远程插件\n` +
+      `• <code>${mainPrefix}tpmx ls</code> - 查看已安装记录\n` +
+      `• <code>${mainPrefix}tpmx rm &lt;插件名&gt;</code> - 卸载单个插件\n` +
+      `• <code>${mainPrefix}tpmx rm &lt;插件名1&gt; &lt;插件名2&gt;</code> - 卸载多个插件`;
 
     const repoLink = `\n🔗 <b>插件仓库:</b> <a href="https://github.com/TeleBoxDev/TeleBox_Plugins">TeleBoxDev/TeleBox_Plugins</a> | <a href="https://github.com/piaoxuez/TeleBox_Plugins_PX">piaoxuez/TeleBox_Plugins_PX</a>`;
 
@@ -809,7 +811,7 @@ async function search(msg: Api.Message) {
       await msg.edit({ text: message, parseMode: "html", linkPreview: false });
     }
   } catch (error) {
-    console.error("[TPM] 搜索插件失败:", error);
+    console.error("[TPMX] 搜索插件失败:", error);
     await msg.edit({ text: `❌ 搜索插件失败: ${error}` });
   }
 }
@@ -836,7 +838,7 @@ async function showPluginRecords(msg: Api.Message, verbose?: boolean) {
           .map((f) => f.replace(/\.ts$/, ""));
       }
     } catch (err) {
-      console.error("[TPM] 读取本地插件目录失败:", err);
+      console.error("[TPMX] 读取本地插件目录失败:", err);
     }
 
     const notInDb = filePlugins.filter((n) => !dbNames.includes(n));
@@ -879,7 +881,7 @@ async function showPluginRecords(msg: Api.Message, verbose?: boolean) {
 
     let message = `${verbose
       ? ""
-      : `💡 可使用 <code>${mainPrefix}tpm ls -v</code> 查看详情信息\n\n`
+      : `💡 可使用 <code>${mainPrefix}tpmx ls -v</code> 查看详情信息\n\n`
       }📚 <b>远程插件记录 (${dbNames.length}个)</b>${dbNames.length === 0 ? "\n" : `\n\n`
       }${dbSection}${notInDbSection}`;
 
@@ -932,7 +934,7 @@ async function showPluginRecords(msg: Api.Message, verbose?: boolean) {
       await msg.edit({ text: message, parseMode: "html" });
     }
   } catch (error) {
-    console.error("[TPM] 读取插件数据库失败:", error);
+    console.error("[TPMX] 读取插件数据库失败:", error);
     await msg.edit({ text: `❌ 读取数据库失败: ${error}` });
   }
 }
@@ -966,10 +968,10 @@ async function updateAllPlugins(msg: Api.Message) {
       if (customResponse.status === 200) {
         customRes = customResponse;
       } else {
-        console.log("[TPM] 自定义插件库获取失败，将仅使用官方库");
+        console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库");
       }
     } catch (customError) {
-      console.log("[TPM] 自定义插件库获取失败，将仅使用官方库:", customError);
+      console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库:", customError);
     }
 
     // 合并两个插件库的数据（自定义优先）
@@ -1003,7 +1005,7 @@ async function updateAllPlugins(msg: Api.Message) {
 
         if (!pluginRecord.url) {
           skipCount++;
-          console.log(`[TPM] 跳过更新插件 ${pluginName}: 无URL记录`);
+          console.log(`[TPMX] 跳过更新插件 ${pluginName}: 无URL记录`);
           continue;
         }
 
@@ -1029,7 +1031,7 @@ async function updateAllPlugins(msg: Api.Message) {
         // 检查文件是否存在
         if (!fs.existsSync(filePath)) {
           skipCount++;
-          console.log(`[TPM] 跳过更新插件 ${pluginName}: 本地文件不存在`);
+          console.log(`[TPMX] 跳过更新插件 ${pluginName}: 本地文件不存在`);
           continue;
         }
 
@@ -1037,7 +1039,7 @@ async function updateAllPlugins(msg: Api.Message) {
         const currentContent = fs.readFileSync(filePath, "utf8");
         if (currentContent === response.data) {
           skipCount++;
-          console.log(`[TPM] 跳过更新插件 ${pluginName}: 内容无变化`);
+          console.log(`[TPMX] 跳过更新插件 ${pluginName}: 内容无变化`);
           continue;
         }
 
@@ -1049,7 +1051,7 @@ async function updateAllPlugins(msg: Api.Message) {
           .slice(0, -5);
         const backupPath = path.join(cacheDir, `${pluginName}_${timestamp}.ts`);
         fs.copyFileSync(filePath, backupPath);
-        console.log(`[TPM] 旧版本已备份到: ${backupPath}`);
+        console.log(`[TPMX] 旧版本已备份到: ${backupPath}`);
 
         // 写入新版本
         fs.writeFileSync(filePath, response.data);
@@ -1064,9 +1066,9 @@ async function updateAllPlugins(msg: Api.Message) {
           // 更新URL为最新的
           db.data[pluginName].url = pluginUrl;
           await db.write();
-          console.log(`[TPM] 已更新插件数据库记录: ${pluginName}`);
+          console.log(`[TPMX] 已更新插件数据库记录: ${pluginName}`);
         } catch (dbError) {
-          console.error(`[TPM] 更新插件数据库记录失败: ${dbError}`);
+          console.error(`[TPMX] 更新插件数据库记录失败: ${dbError}`);
         }
 
         updatedCount++;
@@ -1074,7 +1076,7 @@ async function updateAllPlugins(msg: Api.Message) {
       } catch (error) {
         failedCount++;
         failedPlugins.push(`${pluginName} (${error})`);
-        console.error(`[TPM] 更新插件 ${pluginName} 失败:`, error);
+        console.error(`[TPMX] 更新插件 ${pluginName} 失败:`, error);
       }
     }
 
@@ -1082,7 +1084,7 @@ async function updateAllPlugins(msg: Api.Message) {
     try {
       await loadPlugins();
     } catch (error) {
-      console.error("[TPM] 重新加载插件失败:", error);
+      console.error("[TPMX] 重新加载插件失败:", error);
     }
 
     const successBar = generateProgressBar(100);
@@ -1104,22 +1106,22 @@ async function updateAllPlugins(msg: Api.Message) {
     await msg.edit({ text: resultMsg, parseMode: "html" });
   } catch (error) {
     await msg.edit({ text: `❌ 一键更新失败: ${error}` });
-    console.error("[TPM] 一键更新插件失败:", error);
+    console.error("[TPMX] 一键更新插件失败:", error);
   }
 }
 
-class TpmPlugin extends Plugin {
-  description: string = `<code>${mainPrefix}tpm search</code> - 显示远程插件列表
-• <code>${mainPrefix}tpm i &lt;插件名&gt;</code> - 安装单个插件
-• <code>${mainPrefix}tpm i &lt;插件名1&gt; &lt;插件名2&gt;</code> - 安装多个插件
-• <code>${mainPrefix}tpm i all</code> - 一键安装全部远程插件
-• <code>${mainPrefix}tpm update</code> - 一键更新所有已安装的远程插件
-• <code>${mainPrefix}tpm ls</code> - 查看已安装记录
-• <code>${mainPrefix}tpm rm &lt;插件名&gt;</code> - 卸载单个插件
-• <code>${mainPrefix}tpm rm &lt;插件名1&gt; &lt;插件名2&gt;</code> - 卸载多个插件
+class TpmxPlugin extends Plugin {
+  description: string = `<code>${mainPrefix}tpmx search</code> - 显示远程插件列表
+• <code>${mainPrefix}tpmx i &lt;插件名&gt;</code> - 安装单个插件
+• <code>${mainPrefix}tpmx i &lt;插件名1&gt; &lt;插件名2&gt;</code> - 安装多个插件
+• <code>${mainPrefix}tpmx i all</code> - 一键安装全部远程插件
+• <code>${mainPrefix}tpmx update</code> - 一键更新所有已安装的远程插件
+• <code>${mainPrefix}tpmx ls</code> - 查看已安装记录
+• <code>${mainPrefix}tpmx rm &lt;插件名&gt;</code> - 卸载单个插件
+• <code>${mainPrefix}tpmx rm &lt;插件名1&gt; &lt;插件名2&gt;</code> - 卸载多个插件
 `;
   cmdHandlers: Record<string, (msg: Api.Message) => Promise<void>> = {
-    tpm: async (msg) => {
+    tpmx: async (msg) => {
       const text = msg.message;
       const [, ...args] = text.split(" ");
       if (args.length === 0) {
@@ -1159,15 +1161,15 @@ class TpmPlugin extends Plugin {
   };
 }
 
-export default new TpmPlugin();
+export default new TpmxPlugin();
 
 if (require.main === module) {
-  console.log("TeleBox Plugin Manager (TPM) - Command Line Mode");
+  console.log("TeleBox Plugin Manager (TPMX) - Command Line Mode");
   // console.log("Command line arguments:", process.argv.slice(2));
 
   const args = process.argv.slice(2);
   if (args.length === 0 || args?.[0] !== "install" || args?.length < 2) {
-    console.log("Usage: node tpm.ts <command> [options]");
+    console.log("Usage: node tpmx.ts <command> [options]");
     console.log("Available commands:");
     console.log("  install <plugin1> <plugin2> ...   - Install plugins");
   }
