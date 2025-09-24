@@ -223,13 +223,32 @@ async function installMultiplePlugins(pluginNames: string[], msg: Api.Message) {
     parseMode: "html",
   });
 
-  const url = `https://github.com/TeleBoxDev/TeleBox_Plugins/blob/main/plugins.json?raw=true`;
+  const officialUrl = `https://github.com/TeleBoxDev/TeleBox_Plugins/blob/main/plugins.json?raw=true`;
+  const customUrl = `https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/plugins.json?raw=true`;
+
   try {
-    const res = await axios.get(url);
-    if (res.status !== 200) {
-      await msg.edit({ text: "❌ 无法获取远程插件库" });
+    // 获取官方插件库
+    const officialRes = await axios.get(officialUrl);
+    if (officialRes.status !== 200) {
+      await msg.edit({ text: "❌ 无法获取官方远程插件库" });
       return;
     }
+
+    // 获取自定义插件库
+    let customRes: any = { data: {} };
+    try {
+      const customResponse = await axios.get(customUrl);
+      if (customResponse.status === 200) {
+        customRes = customResponse;
+      } else {
+        console.log("[TPM] 自定义插件库获取失败，将仅使用官方库");
+      }
+    } catch (customError) {
+      console.log("[TPM] 自定义插件库获取失败，将仅使用官方库:", customError);
+    }
+
+    // 合并两个插件库的数据（官方库优先）
+    const mergedPlugins = { ...officialRes.data, ...customRes.data };
 
     let installedCount = 0;
     let failedCount = 0;
@@ -257,14 +276,14 @@ async function installMultiplePlugins(pluginNames: string[], msg: Api.Message) {
           });
         }
 
-        // 检查插件是否存在于远程库
-        if (!res.data[pluginName]) {
+        // 检查插件是否存在于合并的插件库中
+        if (!mergedPlugins[pluginName]) {
           failedCount++;
           notFoundPlugins.push(pluginName);
           continue;
         }
 
-        const pluginData = res.data[pluginName];
+        const pluginData = mergedPlugins[pluginName];
         if (!pluginData.url) {
           failedCount++;
           failedPlugins.push(`${pluginName} (无URL)`);
