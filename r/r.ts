@@ -6,13 +6,13 @@ import { RPCError } from "telegram/errors";
 const prefixes = getPrefixes();
 const mainPrefix = prefixes[0];
 
-class RePlugin extends Plugin {
-    description: string = `复读\n回复一条消息即可复读\n<code>${mainPrefix}re [消息数] [复读次数]</code>`;
+class RPlugin extends Plugin {
+    description: string = `复读\n回复一条消息即可复读\n<code>${mainPrefix}r [消息数] [复读次数]</code>`;
     cmdHandlers: Record<
         string,
         (msg: Api.Message, trigger?: Api.Message) => Promise<void>
     > = {
-            re: async (msg, trigger) => {
+            r: async (msg, trigger) => {
                 const [, ...args] = msg.text.slice(1).split(" ");
                 const count = parseInt(args[0]) || 1;
                 const repeat = parseInt(args[1]) || 1;
@@ -140,7 +140,7 @@ class RePlugin extends Plugin {
                     });
                 }
             } catch (e) {
-                console.warn("[re.echo] 构造 InputMedia 失败", e);
+                console.warn("[r.echo] 构造 InputMedia 失败", e);
             }
             return undefined;
         };
@@ -183,6 +183,6 @@ class RePlugin extends Plugin {
     }
 }
 
-const plugin = new RePlugin();
+const plugin = new RPlugin();
 
 export default plugin;
