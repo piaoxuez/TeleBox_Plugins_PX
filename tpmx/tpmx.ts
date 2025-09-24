@@ -40,39 +40,22 @@ async function getMediaFileName(msg: any): Promise<string> {
 async function installRemotePlugin(plugin: string, msg: Api.Message) {
   await msg.edit({ text: `正在安装插件 ${plugin}...` });
 
-  const officialUrl = `https://github.com/TeleBoxDev/TeleBox_Plugins/blob/main/plugins.json?raw=true`;
   const customUrl = `https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/plugins.json?raw=true`;
 
   try {
-    // 获取官方插件库
-    const officialRes = await axios.get(officialUrl);
-    if (officialRes.status !== 200) {
-      await msg.edit({ text: "❌ 无法获取官方远程插件库" });
+    // 获取自定义插件库
+    const customRes = await axios.get(customUrl);
+    if (customRes.status !== 200) {
+      await msg.edit({ text: "❌ 无法获取自定义远程插件库" });
       return;
     }
 
-    // 获取自定义插件库
-    let customRes: any = { data: {} };
-    try {
-      const customResponse = await axios.get(customUrl);
-      if (customResponse.status === 200) {
-        customRes = customResponse;
-      } else {
-        console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库");
-      }
-    } catch (customError) {
-      console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库:", customError);
-    }
-
-    // 合并两个插件库的数据（自定义优先）
-    const mergedPlugins = { ...officialRes.data, ...customRes.data };
-
-    if (!mergedPlugins[plugin]) {
+    if (!customRes.data[plugin]) {
       await msg.edit({ text: `未找到插件 ${plugin} 的远程资源` });
       return;
     }
 
-    const pluginData = mergedPlugins[plugin];
+    const pluginData = customRes.data[plugin];
     const pluginUrl = pluginData.url;
     const response = await axios.get(pluginUrl);
     if (response.status !== 200) {
@@ -119,34 +102,17 @@ async function installRemotePlugin(plugin: string, msg: Api.Message) {
 async function installAllPlugins(msg: Api.Message) {
   await msg.edit({ text: "🔍 正在获取远程插件列表..." });
 
-  const officialUrl = `https://github.com/TeleBoxDev/TeleBox_Plugins/blob/main/plugins.json?raw=true`;
   const customUrl = `https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/plugins.json?raw=true`;
 
   try {
-    // 获取官方插件库
-    const officialRes = await axios.get(officialUrl);
-    if (officialRes.status !== 200) {
-      await msg.edit({ text: "❌ 无法获取官方远程插件库" });
+    // 获取自定义插件库
+    const customRes = await axios.get(customUrl);
+    if (customRes.status !== 200) {
+      await msg.edit({ text: "❌ 无法获取自定义远程插件库" });
       return;
     }
 
-    // 获取自定义插件库
-    let customRes: any = { data: {} };
-    try {
-      const customResponse = await axios.get(customUrl);
-      if (customResponse.status === 200) {
-        customRes = customResponse;
-      } else {
-        console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库");
-      }
-    } catch (customError) {
-      console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库:", customError);
-    }
-
-    // 合并两个插件库的数据（自定义优先）
-    const mergedPlugins = { ...officialRes.data, ...customRes.data };
-
-    const plugins = Object.keys(mergedPlugins);
+    const plugins = Object.keys(customRes.data);
     const totalPlugins = plugins.length;
     if (totalPlugins === 0) {
       await msg.edit({ text: "📦 远程插件库为空" });
@@ -175,7 +141,7 @@ async function installAllPlugins(msg: Api.Message) {
           });
         }
 
-        const pluginData = mergedPlugins[plugin];
+        const pluginData = customRes.data[plugin];
         if (!pluginData || !pluginData.url) {
           failedCount++;
           failedPlugins.push(`${plugin} (无URL)`);
@@ -269,32 +235,15 @@ async function installMultiplePlugins(pluginNames: string[], msg: Api.Message) {
     parseMode: "html",
   });
 
-  const officialUrl = `https://github.com/TeleBoxDev/TeleBox_Plugins/blob/main/plugins.json?raw=true`;
   const customUrl = `https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/plugins.json?raw=true`;
 
   try {
-    // 获取官方插件库
-    const officialRes = await axios.get(officialUrl);
-    if (officialRes.status !== 200) {
-      await msg.edit({ text: "❌ 无法获取官方远程插件库" });
+    // 获取自定义插件库
+    const customRes = await axios.get(customUrl);
+    if (customRes.status !== 200) {
+      await msg.edit({ text: "❌ 无法获取自定义远程插件库" });
       return;
     }
-
-    // 获取自定义插件库
-    let customRes: any = { data: {} };
-    try {
-      const customResponse = await axios.get(customUrl);
-      if (customResponse.status === 200) {
-        customRes = customResponse;
-      } else {
-        console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库");
-      }
-    } catch (customError) {
-      console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库:", customError);
-    }
-
-    // 合并两个插件库的数据（自定义优先）
-    const mergedPlugins = { ...officialRes.data, ...customRes.data };
 
     let installedCount = 0;
     let failedCount = 0;
@@ -321,14 +270,14 @@ async function installMultiplePlugins(pluginNames: string[], msg: Api.Message) {
           });
         }
 
-        // 检查插件是否存在于合并的插件库中
-        if (!mergedPlugins[pluginName]) {
+        // 检查插件是否存在于自定义插件库中
+        if (!customRes.data[pluginName]) {
           failedCount++;
           notFoundPlugins.push(pluginName);
           continue;
         }
 
-        const pluginData = mergedPlugins[pluginName];
+        const pluginData = customRes.data[pluginName];
         if (!pluginData.url) {
           failedCount++;
           failedPlugins.push(`${pluginName} (无URL)`);
@@ -657,36 +606,19 @@ async function uploadPlugin(args: string[], msg: Api.Message) {
 }
 
 async function search(msg: Api.Message) {
-  const officialUrl = `https://github.com/TeleBoxDev/TeleBox_Plugins/blob/main/plugins.json?raw=true`;
   const customUrl = `https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/plugins.json?raw=true`;
 
   try {
     await msg.edit({ text: "🔍 正在获取插件列表..." });
 
-    // 获取官方插件库
-    const officialRes = await axios.get(officialUrl);
-    if (officialRes.status !== 200) {
-      await msg.edit({ text: `❌ 无法获取官方远程插件库` });
+    // 获取自定义插件库
+    const customRes = await axios.get(customUrl);
+    if (customRes.status !== 200) {
+      await msg.edit({ text: `❌ 无法获取自定义远程插件库` });
       return;
     }
 
-    // 获取自定义插件库
-    let customRes: any = { data: {} };
-    try {
-      const customResponse = await axios.get(customUrl);
-      if (customResponse.status === 200) {
-        customRes = customResponse;
-      } else {
-        console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库");
-      }
-    } catch (customError) {
-      console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库:", customError);
-    }
-
-    // 合并两个插件库的数据（自定义优先）
-    const mergedPlugins = { ...officialRes.data, ...customRes.data };
-    const pluginNames = Object.keys(mergedPlugins);
-    console.log("official plugins: ", Object.keys(officialRes.data));
+    const pluginNames = Object.keys(customRes.data);
     console.log("custom plugins: ", Object.keys(customRes.data));
 
     // 获取本地插件文件列表
@@ -733,7 +665,7 @@ async function search(msg: Api.Message) {
 
     const pluginList = pluginNames
       .map((plugin) => {
-        const pluginData = mergedPlugins[plugin];
+        const pluginData = customRes.data[plugin];
         const remoteUrl = pluginData?.url || "";
         const { status, label } = getPluginStatus(plugin, remoteUrl);
         const description = pluginData?.desc || "暂无描述";
@@ -758,7 +690,7 @@ async function search(msg: Api.Message) {
       `• <code>${mainPrefix}tpmx rm &lt;插件名&gt;</code> - 卸载单个插件\n` +
       `• <code>${mainPrefix}tpmx rm &lt;插件名1&gt; &lt;插件名2&gt;</code> - 卸载多个插件`;
 
-    const repoLink = `\n🔗 <b>插件仓库:</b> <a href="https://github.com/TeleBoxDev/TeleBox_Plugins">TeleBoxDev/TeleBox_Plugins</a> | <a href="https://github.com/piaoxuez/TeleBox_Plugins_PX">piaoxuez/TeleBox_Plugins_PX</a>`;
+    const repoLink = `\n🔗 <b>插件仓库:</b> <a href="https://github.com/piaoxuez/TeleBox_Plugins_PX">piaoxuez/TeleBox_Plugins_PX</a>`;
 
     const message = `🔍 <b>远程插件列表:</b>\n\n${statsInfo}\n\n<b>插件详情:</b>\n${pluginList}\n${installTip}\n${repoLink}`;
     // 检查消息长度，如果超过 3500 则分段发送
@@ -950,32 +882,14 @@ async function updateAllPlugins(msg: Api.Message) {
       return;
     }
 
-    // 获取两个仓库的插件列表用于URL验证和更新
-    const officialUrl = `https://github.com/TeleBoxDev/TeleBox_Plugins/blob/main/plugins.json?raw=true`;
+    // 获取自定义插件库
     const customUrl = `https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/plugins.json?raw=true`;
 
-    // 获取官方插件库
-    const officialRes = await axios.get(officialUrl);
-    if (officialRes.status !== 200) {
-      await msg.edit({ text: "❌ 无法获取官方远程插件库" });
+    const customRes = await axios.get(customUrl);
+    if (customRes.status !== 200) {
+      await msg.edit({ text: "❌ 无法获取自定义远程插件库" });
       return;
     }
-
-    // 获取自定义插件库
-    let customRes: any = { data: {} };
-    try {
-      const customResponse = await axios.get(customUrl);
-      if (customResponse.status === 200) {
-        customRes = customResponse;
-      } else {
-        console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库");
-      }
-    } catch (customError) {
-      console.log("[TPMX] 自定义插件库获取失败，将仅使用官方库:", customError);
-    }
-
-    // 合并两个插件库的数据（自定义优先）
-    const mergedPlugins = { ...officialRes.data, ...customRes.data };
 
     const totalPlugins = dbPlugins.length;
     let updatedCount = 0;
@@ -1009,11 +923,11 @@ async function updateAllPlugins(msg: Api.Message) {
           continue;
         }
 
-        // 检查插件是否存在于合并的插件库中（优先使用最新的仓库信息）
-        const currentPluginData = mergedPlugins[pluginName];
+        // 检查插件是否存在于自定义插件库中
+        const currentPluginData = customRes.data[pluginName];
         let pluginUrl = pluginRecord.url;
 
-        // 如果插件在新的仓库中有定义，使用新的URL（自定义优先）
+        // 如果插件在自定义仓库中有定义，使用新的URL
         if (currentPluginData && currentPluginData.url) {
           pluginUrl = currentPluginData.url;
         }

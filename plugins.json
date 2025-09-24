@@ -1,7 +1,7 @@
 {
-    "rx": {
-        "url": "https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/rx/rx.ts?raw=true",
-        "desc": "re与echo的结合版，能转发的群用转发，不能转发的群用复读"
+    "re": {
+        "url": "https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/re/re.ts?raw=true",
+        "desc": "官方re与echo的结合版，能转发的群用转发，不能转发的群用复读"
     },
     "zy": {
         "url": "https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/zy/zy.ts?raw=true",
@@ -13,6 +13,6 @@
     },
     "tpmx": {
         "url": "https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/tpmx/tpmx.ts?raw=true",
-        "desc": "管理器，加入了自己的源"
+        "desc": "管理器，类似官方的tpm，但仅包含本仓库的插件"
     }
 }
