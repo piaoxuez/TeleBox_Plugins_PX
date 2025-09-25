@@ -23,8 +23,8 @@
         "url": "https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/qp/qp.ts?raw=true",
         "desc": "求片/洗版插件，支持求片和洗版，支持TMDB搜索，需要自备API Key"
     },
-    "cg": {
-        "url": "https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/cg/cg.ts?raw=true",
-        "desc": "AI总结聊天记录插件，支持OpenAI、Claude、Gemini、Kimi、Moonshot"
+    "ai": {
+        "url": "https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/ai/ai.ts?raw=true",
+        "desc": "增加自定义compat能力，以及吃瓜能力"
     }
 }

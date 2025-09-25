@@ -467,6 +467,85 @@ function footer(model: string, extra?: string) { const src = model.toLowerCase()
 function ensureDir() { if (!fs.existsSync(Store.baseDir)) fs.mkdirSync(Store.baseDir, { recursive: true }); }
 function chatIdStr(msg: Api.Message) { return String((msg.peerId as any)?.channelId || (msg.peerId as any)?.userId || (msg.peerId as any)?.chatId || "global"); }
 function histFor(id: string) { return Store.data.histories[id] || []; }
+
+// ---- 吃瓜功能辅助函数 ----
+function parseTimeOrCount(input: string): { type: "time" | "count"; value: number } | null {
+    const trimmed = input.trim();
+
+    if (/^\d+$/.test(trimmed)) {
+        const count = parseInt(trimmed, 10);
+        if (count > 0 && count <= 1000) {
+            return { type: "count", value: count };
+        }
+        return null;
+    }
+
+    const timeMatch = trimmed.match(/^(\d+)(h|m|d)$/i);
+    if (timeMatch) {
+        const value = parseInt(timeMatch[1], 10);
+        const unit = timeMatch[2].toLowerCase();
+
+        if (value <= 0) return null;
+
+        let minutes = 0;
+        switch (unit) {
+            case "m":
+                minutes = value;
+                break;
+            case "h":
+                minutes = value * 60;
+                break;
+            case "d":
+                minutes = value * 60 * 24;
+                break;
+            default:
+                return null;
+        }
+
+        if (minutes > 0 && minutes <= 7 * 24 * 60) {
+            return { type: "time", value: minutes };
+        }
+    }
+
+    return null;
+}
+
+function formatUsername(user: any): string {
+    if (!user) return "未知用户";
+
+    const parts = [];
+    if (user.firstName) parts.push(user.firstName);
+    if (user.lastName) parts.push(user.lastName);
+
+    if (parts.length > 0) {
+        return parts.join(" ");
+    }
+
+    if (user.username) {
+        return `@${user.username}`;
+    }
+
+    return `用户${user.id}`;
+}
+
+function formatTime(date: Date): string {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+async function sendFinalMessage(msg: Api.Message, text: string): Promise<void> {
+    try {
+        await msg.delete();
+        if (msg.client) {
+            await msg.client.sendMessage(msg.peerId, {
+                message: text,
+                parseMode: "html"
+            });
+        }
+    } catch (deleteError) {
+        await msg.edit({ text, parseMode: "html" });
+    }
+}
 const HISTORY_GLOBAL_MAX_SESSIONS = 200;
 const HISTORY_GLOBAL_MAX_BYTES = 2 * 1024 * 1024; // 2MB
 function pruneGlobalHistories() {
@@ -1207,7 +1286,7 @@ async function listModelsByAnyCompat(p: Provider): Promise<{ models: string[]; c
     return { models: Array.from(merged.values()), compat: primary, compats, modelMap };
 }
 
-async function callChat(kind: "chat" | "search", text: string, msg: Api.Message): Promise<{ content: string; model: string }> {
+async function callChat(kind: "chat" | "search", text: string, msg: Api.Message, maxTokens?: number): Promise<{ content: string; model: string }> {
     const m = pick(kind); if (!m) throw new Error(`未设置${kind}模型，请先配置`);
     const p = providerOf(m.provider); if (!p) throw new Error(`服务商 ${m.provider} 未配置`);
     const compat = await resolveCompat(m.provider, m.model, p);
@@ -1219,8 +1298,8 @@ async function callChat(kind: "chat" | "search", text: string, msg: Api.Message)
         const isSearch = kind === "search";
 
         // 根据兼容性类型调用相应的聊天函数
-        if (compat === "openai") out = await chatOpenAI(p, m.model, msgs, undefined, isSearch);
-        else if (compat === "claude") out = await chatClaude(p, m.model, msgs, undefined, isSearch);
+        if (compat === "openai") out = await chatOpenAI(p, m.model, msgs, maxTokens, isSearch);
+        else if (compat === "claude") out = await chatClaude(p, m.model, msgs, maxTokens, isSearch);
         else out = await chatGemini(p, m.model, msgs, isSearch);
     } catch (e: any) {
         const em = e?.message || String(e);
@@ -1280,6 +1359,14 @@ const help = `🔧 📝 <b>特性</b>
 • limit &lt;数量&gt;：设置字数阈值（0 表示不限制）
 • 自动创建 / 管理 / 删除 Telegraph 文章
 
+🍉 <b>吃瓜功能 - 聊天记录总结</b>
+<code>ai cg 1h</code> - 总结最近1小时的聊天记录
+<code>ai cg 10</code> - 总结最近10条消息
+<code>ai cg 30m</code> - 总结最近30分钟的聊天记录
+<code>ai cg 2d</code> - 总结最近2天的聊天记录
+• 时间单位支持: h(小时) m(分钟) d(天)
+• 数量范围: 1-1000条消息
+
 ⚙️ <b>模型管理</b>
 <code>ai model list</code> - 查看当前模型配置
 <code>ai model chat|search|image|tts [服务商] [模型] [compat]</code> - 设置各功能模型，可选指定兼容性(openai/gemini/claude)
@@ -1337,7 +1424,7 @@ class AiPlugin extends Plugin {
             };
             const subn = aliasMap[subl] || subl;
             const knownSubs = [
-                "config", "model", "context", "collapse", "telegraph",
+                "config", "model", "context", "collapse", "telegraph", "cg",
                 "chat", "search", "image", "tts", "audio", "searchaudio"
             ];
             const isUnknownBareQuery = !!subn && !knownSubs.includes(subn);
@@ -1723,6 +1810,147 @@ class AiPlugin extends Plugin {
                     if (a0 === "list") { const list = Store.data.telegraph.posts.map((p, i) => `${i + 1}. <a href="${p.url}">${html(p.title)}</a> ${p.createdAt}`).join("\n") || "(空)"; await sendLong(msg, `🧾 <b>Telegraph 列表</b>\n\n${list}`); return; }
                     if (a0 === "del") { const t = (args[1] || "").toLowerCase(); if (t === "all") Store.data.telegraph.posts = []; else { const i = parseInt(args[1] || "0") - 1; if (i >= 0) Store.data.telegraph.posts.splice(i, 1); } await Store.writeSoon(); await msg.edit({ text: "✅ 操作完成", parseMode: "html" }); return; }
                     await msg.edit({ text: "❌ 未知 telegraph 子命令", parseMode: "html" }); return;
+                }
+
+                if (subn === "cg") {
+                    if (!args.length) {
+                        const cgHelp = `🍉 <b>吃瓜功能 - 聊天记录总结</b>
+
+用法:
+<code>ai cg 1h</code> - 总结最近1小时的聊天记录
+<code>ai cg 10</code> - 总结最近10条消息
+<code>ai cg 30m</code> - 总结最近30分钟的聊天记录
+<code>ai cg 2d</code> - 总结最近2天的聊天记录
+
+时间单位支持: h(小时) m(分钟) d(天)
+数量范围: 1-1000条消息
+
+注意: 需要先配置AI服务商才能使用此功能`;
+                        await msg.edit({ text: cgHelp, parseMode: "html" });
+                        return;
+                    }
+
+                    const param = args[0];
+                    const parsed = parseTimeOrCount(param);
+
+                    if (!parsed) {
+                        await msg.edit({
+                            text: "❌ 参数格式错误\n\n支持格式:\n• 数字 (1-1000): 获取最近N条消息\n• 时间 (如1h, 30m, 2d): 获取指定时间内的消息",
+                            parseMode: "html"
+                        });
+                        return;
+                    }
+
+                    try {
+                        await msg.edit({ text: "🍉 正在获取聊天记录...", parseMode: "html" });
+
+                        const client = msg.client;
+                        if (!client) {
+                            await msg.edit({ text: "❌ 无法获取Telegram客户端", parseMode: "html" });
+                            return;
+                        }
+
+                        let messages: Api.Message[] = [];
+
+                        if (parsed.type === "count") {
+                            messages = await client.getMessages(msg.peerId, {
+                                limit: parsed.value + 10,
+                                offsetId: msg.id
+                            });
+                            messages = messages.filter(m => m.id !== msg.id).slice(0, parsed.value);
+                        } else {
+                            const cutoffTime = new Date(Date.now() - parsed.value * 60 * 1000);
+                            let allMessages: Api.Message[] = [];
+                            let offsetId = msg.id;
+
+                            for (let i = 0; i < 20; i++) {
+                                const batch = await client.getMessages(msg.peerId, {
+                                    limit: 100,
+                                    offsetId: offsetId
+                                });
+
+                                if (!batch.length) break;
+
+                                const validMessages = batch.filter(m => {
+                                    if (m.id === msg.id) return false;
+                                    return m.date && m.date >= Math.floor(cutoffTime.getTime() / 1000);
+                                });
+
+                                allMessages.push(...validMessages);
+
+                                const oldestInBatch = batch[batch.length - 1];
+                                if (!oldestInBatch.date || oldestInBatch.date < Math.floor(cutoffTime.getTime() / 1000)) {
+                                    break;
+                                }
+
+                                offsetId = oldestInBatch.id;
+                            }
+
+                            messages = allMessages.slice(0, 1000);
+                        }
+
+                        if (messages.length === 0) {
+                            await msg.edit({ text: "❌ 未找到符合条件的聊天记录", parseMode: "html" });
+                            return;
+                        }
+
+                        await msg.edit({ text: `🍉 正在分析 ${messages.length} 条聊天记录...`, parseMode: "html" });
+
+                        const chatHistory = [];
+                        for (const m of messages.reverse()) {
+                            const sender = await m.getSender();
+                            const username = formatUsername(sender);
+                            const time = formatTime(new Date(m.date! * 1000));
+                            const content = extractText(m);
+
+                            if (content.trim()) {
+                                chatHistory.push(`${username} - ${time} - ${content}`);
+                            }
+                        }
+
+                        if (chatHistory.length === 0) {
+                            await msg.edit({ text: "❌ 聊天记录中没有有效的文本内容", parseMode: "html" });
+                            return;
+                        }
+
+                        // 智能截断：确保prompt不会过长
+                        const maxPromptLength = 100000;
+                        const promptPrefix = `这是一段聊天记录，请你总结一下大家具体聊了什么内容。请仔细总结，这段聊天记录主要有几件事，每件事具体讲了什么，前后始末又是什么：\n\n`;
+                        const promptSuffix = `\n\n开始概括，特别要注意聊天记录的时间顺序。概括结果一定要让人能够只通过聊天记录，就能比较清楚的了解这段时间发生了什么，但又不能太啰嗦，要讲究度。\n不要使用markdown返回，请使用HTML格式化（如<b>粗体</b>、<i>斜体</i>等 <h1>标题</h1>）来突出重要信息`;
+                        let historyText = chatHistory.join('\n');
+                        let finalHistory = chatHistory;
+
+                        if (promptPrefix.length + historyText.length > maxPromptLength) {
+                            let totalLength = promptPrefix.length;
+                            finalHistory = [];
+
+                            for (const entry of chatHistory) {
+                                if (totalLength + entry.length + 1 > maxPromptLength) {
+                                    break;
+                                }
+                                finalHistory.push(entry);
+                                totalLength += entry.length + 1;
+                            }
+                            historyText = finalHistory.join('\n');
+                        }
+
+                        const prompt = promptPrefix + historyText + promptSuffix;
+                        const aiMessages = [{ role: "user", content: prompt }];
+
+                        const result = await callChat("chat", prompt, msg, 10240);
+
+                        const summary = `🍉 <b>聊天记录总结</b>\n\n📊 <b>统计信息:</b>\n• 获取消息: ${messages.length} 条\n• 有效消息: ${chatHistory.length} 条\n• 分析消息: ${finalHistory.length} 条\n• 时间范围: ${parsed.type === "time" ? `最近${param}` : `最近${param}条消息`}\n\n📝 <b>内容总结:</b>\n${result.content}\n\n<i>Powered by ${result.model}</i>`;
+
+                        await sendFinalMessage(msg, summary);
+
+                    } catch (error: any) {
+                        let errorMsg = error?.message || String(error);
+                        await msg.edit({
+                            text: `❌ 处理失败: ${errorMsg}`,
+                            parseMode: "html"
+                        });
+                    }
+                    return;
                 }
 
                 if (subn === "chat" || subn === "search" || !subn || isUnknownBareQuery) {
