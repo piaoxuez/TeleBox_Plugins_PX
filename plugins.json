@@ -14,5 +14,9 @@
     "tpmx": {
         "url": "https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/tpmx/tpmx.ts?raw=true",
         "desc": "管理器，类似官方的tpm，但仅包含本仓库的插件"
+    },
+    "sticker": {
+        "url": "https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/sticker/sticker.ts?raw=true",
+        "desc": "在官方sticker的基础上，支持不能转发的群"
     }
 }
