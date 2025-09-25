@@ -566,7 +566,7 @@ class QpPlugin extends Plugin {
                 movieResults.forEach((result) => {
                     const title = result.title || result.name || '';
                     const overview = result.overview || '暂无简介';
-                    const shortOverview = overview.length > 30 ? overview.substring(0, 30) + '...' : overview;
+                    const shortOverview = overview.length > 60 ? overview.substring(0, 60) + '...' : overview;
 
                     resultText += `<b>${index}.</b> ${htmlEscape(title)}\n`;
                     resultText += `   ${htmlEscape(shortOverview)}\n\n`;
@@ -582,7 +582,7 @@ class QpPlugin extends Plugin {
                 tvResults.forEach((result) => {
                     const title = result.title || result.name || '';
                     const overview = result.overview || '暂无简介';
-                    const shortOverview = overview.length > 30 ? overview.substring(0, 30) + '...' : overview;
+                    const shortOverview = overview.length > 60 ? overview.substring(0, 60) + '...' : overview;
 
                     resultText += `<b>${index}.</b> ${htmlEscape(title)}\n`;
                     resultText += `   ${htmlEscape(shortOverview)}\n\n`;
