@@ -555,7 +555,7 @@ class CgPlugin extends Plugin {
                 const maxPromptLength = 100000;
                 const promptPrefix = `这是一段聊天记录，请你总结一下大家具体聊了什么内容。请仔细总结，这段聊天记录主要有几件事，每件事具体讲了什么，前后始末又是什么：\n\n`;
 
-                const promptSuffix = `\n\n开始概括，特别要注意聊天记录的时间顺序。概括结果一定要让人能够只通过聊天记录，就能比较清楚的了解这段时间发生了什么。`;
+                const promptSuffix = `\n\n开始概括，特别要注意聊天记录的时间顺序。概括结果一定要让人能够只通过聊天记录，就能比较清楚的了解这段时间发生了什么，不要使用markdown返回，用正常文本`;
                 let historyText = chatHistory.join('\n');
                 let finalHistory = chatHistory;
 
