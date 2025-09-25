@@ -412,6 +412,24 @@ function extractText(m: Api.Message | null | undefined): string {
     return anyM.text || anyM.message || "";
 }
 
+async function sendFinalMessage(msg: Api.Message, text: string): Promise<void> {
+    try {
+        // 尝试删除原消息并发送新消息
+        await msg.delete();
+        if (msg.client) {
+            await msg.client.sendMessage(msg.peerId, {
+                message: text,
+                parseMode: "html"
+            });
+        }
+        console.log(`[CG] 成功删除原消息并发送新消息`);
+    } catch (deleteError) {
+        console.error(`[CG] 无法删除原消息，改为编辑:`, deleteError);
+        // 如果删除失败，回退到编辑模式
+        await msg.edit({ text, parseMode: "html" });
+    }
+}
+
 class CgPlugin extends Plugin {
     name = "cg";
     description = `🍉 吃瓜插件 - 聊天记录总结\n\n${help}`;
@@ -573,7 +591,7 @@ class CgPlugin extends Plugin {
 
                 const summary = `🍉 <b>聊天记录总结</b>\n\n📊 <b>统计信息:</b>\n• 获取消息: ${messages.length} 条\n• 有效消息: ${chatHistory.length} 条\n• 分析消息: ${finalHistory.length} 条\n• 时间范围: ${parsed.type === "time" ? `最近${param}` : `最近${param}条消息`}\n\n📝 <b>内容总结:</b>\n${result.content}\n\n<i>Powered by ${result.model}</i>`;
 
-                await msg.edit({ text: summary, parseMode: "html" });
+                await sendFinalMessage(msg, summary);
 
             } catch (error: any) {
                 console.error("=== CG Plugin 完整错误信息 ===");
