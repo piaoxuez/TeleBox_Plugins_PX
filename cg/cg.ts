@@ -220,7 +220,7 @@ async function chatClaude(p: Provider, model: string, msgs: { role: string; cont
     const url = trimBase(p.baseUrl) + "/v1/messages";
     const body: any = {
         model,
-        max_tokens: 1024,
+        max_tokens: 3072,
         messages: msgs.map(m => ({
             role: m.role === "assistant" ? "assistant" : "user",
             content: m.content
@@ -241,7 +241,7 @@ async function chatClaude(p: Provider, model: string, msgs: { role: string; cont
                 headers: { "Content-Type": "application/json", ...attempt.headers },
                 params: attempt.params,
                 data: body,
-                timeout: 30000
+                timeout: 600000
             };
 
             console.log(`[CG] Claude尝试${index + 1}，请求头:`, config.headers);
@@ -287,7 +287,7 @@ async function chatGemini(p: Provider, model: string, msgs: { role: string; cont
                 headers: { "Content-Type": "application/json", ...attempt.headers },
                 params: attempt.params,
                 data: body,
-                timeout: 30000
+                timeout: 600000
             };
 
             console.log(`[CG] Gemini尝试${index + 1}，请求头:`, config.headers);
@@ -384,15 +384,21 @@ function parseTimeOrCount(input: string): { type: "time" | "count"; value: numbe
 function formatUsername(user: any): string {
     if (!user) return "未知用户";
 
-    if (user.username) {
-        return `@${user.username}`;
-    }
-
+    // 优先使用显示名称（firstName + lastName）
     const parts = [];
     if (user.firstName) parts.push(user.firstName);
     if (user.lastName) parts.push(user.lastName);
 
-    return parts.length > 0 ? parts.join(" ") : `用户${user.id}`;
+    if (parts.length > 0) {
+        return parts.join(" ");
+    }
+
+    // 如果没有firstName/lastName，才用username
+    if (user.username) {
+        return `@${user.username}`;
+    }
+
+    return `用户${user.id}`;
 }
 
 function formatTime(date: Date): string {
@@ -505,6 +511,11 @@ class CgPlugin extends Plugin {
                     const username = formatUsername(sender);
                     const time = formatTime(new Date(m.date! * 1000));
                     const content = extractText(m);
+
+                    // 添加用户名格式化信息（仅第一次显示）
+                    if (index === 0 && sender) {
+                        console.log(`[CG] 用户名格式化示例: firstName="${sender.firstName || ''}" lastName="${sender.lastName || ''}" username="${sender.username || ''}" -> "${username}"`);
+                    }
 
                     console.log(`[CG] 消息${index + 1}: ${username} - ${time} - "${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`);
 
