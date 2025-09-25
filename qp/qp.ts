@@ -567,8 +567,9 @@ class QpPlugin extends Plugin {
                     const title = result.title || result.name || '';
                     const overview = result.overview || '暂无简介';
                     const shortOverview = overview.length > 120 ? overview.substring(0, 120) + '...' : overview;
+                    const tmdbUrl = `https://www.themoviedb.org/${result.type}/${result.id}`;
 
-                    resultText += `<b>${index}.</b> ${htmlEscape(title)}\n`;
+                    resultText += `<b>${index}.</b> ${htmlEscape(title)} <a href="${tmdbUrl}">🔗</a>\n`;
                     resultText += `   ${htmlEscape(shortOverview)}\n\n`;
                     index++;
                 });
@@ -583,8 +584,9 @@ class QpPlugin extends Plugin {
                     const title = result.title || result.name || '';
                     const overview = result.overview || '暂无简介';
                     const shortOverview = overview.length > 120 ? overview.substring(0, 120) + '...' : overview;
+                    const tmdbUrl = `https://www.themoviedb.org/${result.type}/${result.id}`;
 
-                    resultText += `<b>${index}.</b> ${htmlEscape(title)}\n`;
+                    resultText += `<b>${index}.</b> ${htmlEscape(title)} <a href="${tmdbUrl}">🔗</a>\n`;
                     resultText += `   ${htmlEscape(shortOverview)}\n\n`;
                     index++;
                 });
