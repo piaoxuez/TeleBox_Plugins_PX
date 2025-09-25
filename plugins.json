@@ -18,5 +18,9 @@
     "sticker": {
         "url": "https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/sticker/sticker.ts?raw=true",
         "desc": "在官方sticker的基础上，支持不能转发的群"
+    },
+    "qp": {
+        "url": "https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/qp/qp.ts?raw=true",
+        "desc": "求片/洗版插件，支持求片和洗版，支持TMDB搜索，需要自备API Key"
     }
 }
