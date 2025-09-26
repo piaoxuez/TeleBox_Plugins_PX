@@ -237,7 +237,7 @@ class ZyPlugin extends Plugin {
                         const client = await getGlobalClient();
 
                         if (isMultilineMode) {
-                            // 多行造谣模式 - 为同一个用户生成多个贴纸
+                            // 多行造谣模式 - 为同一个用户生成一张包含多个消息的贴纸
                             const sender = (await replied.forward?.getSender()) || (await replied.getSender());
                             if (!sender) {
                                 await msg.edit({ text: "无法获取消息发送者信息" });
@@ -266,12 +266,10 @@ class ZyPlugin extends Plugin {
                                 console.warn("下载用户头像失败", e);
                             }
 
-                            // 为每一行文本生成一个贴纸
-                            for (let i = 0; i < multilineTexts.length; i++) {
-                                const textLine = multilineTexts[i];
-                                await msg.edit({ text: `正在生成第${i + 1}/${multilineTexts.length}个造谣贴纸...` });
-
-                                const items = [{
+                            // 为每一行文本创建消息项
+                            const items = [];
+                            for (const textLine of multilineTexts) {
+                                items.push({
                                     from: {
                                         id: parseInt(userId),
                                         first_name: firstName,
@@ -284,69 +282,65 @@ class ZyPlugin extends Plugin {
                                     entities: [], // 多行造谣模式不支持实体
                                     avatar: true,
                                     media: undefined, // 多行造谣模式不包含媒体
-                                }];
+                                });
+                            }
 
-                                const quoteData = {
-                                    type: "quote",
-                                    format: "webp",
-                                    backgroundColor: "#1b1429",
-                                    width: 512,
-                                    height: 768,
-                                    scale: 2,
-                                    emojiBrand: "apple",
-                                    messages: items,
-                                };
+                            const quoteData = {
+                                type: "quote",
+                                format: "webp",
+                                backgroundColor: "#1b1429",
+                                width: 512,
+                                height: 768,
+                                scale: 2,
+                                emojiBrand: "apple",
+                                messages: items,
+                            };
 
-                                // 生成语录贴纸
-                                const quoteResult = await generateQuote(quoteData);
-                                const imageBuffer = quoteResult.buffer;
-                                const imageExt = quoteResult.ext;
+                            // 生成语录贴纸
+                            const quoteResult = await generateQuote(quoteData);
+                            const imageBuffer = quoteResult.buffer;
+                            const imageExt = quoteResult.ext;
 
-                                // 验证图片数据
-                                if (!imageBuffer || imageBuffer.length === 0) {
-                                    await msg.edit({ text: `生成第${i + 1}个贴纸时图片数据为空` });
-                                    return;
-                                }
+                            // 验证图片数据
+                            if (!imageBuffer || imageBuffer.length === 0) {
+                                await msg.edit({ text: "生成的图片数据为空" });
+                                return;
+                            }
 
-                                try {
-                                    const file = new CustomFile(
-                                        `sticker.${imageExt}`,
-                                        imageBuffer.length,
-                                        "",
-                                        imageBuffer
-                                    );
+                            try {
+                                const file = new CustomFile(
+                                    `sticker.${imageExt}`,
+                                    imageBuffer.length,
+                                    "",
+                                    imageBuffer
+                                );
 
-                                    // 发送贴纸
-                                    const stickerAttr = new Api.DocumentAttributeSticker({
-                                        alt: "fake_quote",
-                                        stickerset: new Api.InputStickerSetEmpty(),
-                                    });
+                                // 发送贴纸
+                                const stickerAttr = new Api.DocumentAttributeSticker({
+                                    alt: "fake_quote",
+                                    stickerset: new Api.InputStickerSetEmpty(),
+                                });
 
-                                    await client.sendFile(msg.peerId, {
-                                        file,
-                                        forceDocument: false,
-                                        attributes: [stickerAttr],
-                                        replyTo: replied?.id,
-                                    });
-
-                                    // 在发送每个贴纸之间添加小延迟，避免过快发送
-                                    if (i < multilineTexts.length - 1) {
-                                        await sleep(500);
-                                    }
-                                } catch (fileError) {
-                                    console.error(`发送第${i + 1}个文件失败: ${fileError}`);
-                                    await msg.edit({ text: `发送第${i + 1}个文件失败: ${fileError}` });
-                                    return;
-                                }
+                                await client.sendFile(msg.peerId, {
+                                    file,
+                                    forceDocument: false,
+                                    attributes: [stickerAttr],
+                                    replyTo: replied?.id,
+                                });
+                            } catch (fileError) {
+                                console.error(`发送文件失败: ${fileError}`);
+                                await msg.edit({ text: `发送文件失败: ${fileError}` });
+                                return;
                             }
 
                             await msg.delete();
-                            const end = Date.now();
-                            console.log(`多行造谣生成耗时: ${end - start}ms，共${multilineTexts.length}个贴纸`);
-                            return;
-                        }
 
-                        const items = [] as any[];
+                            const end = Date.now();
+                            console.log(`多行造谣生成耗时: ${end - start}ms，共${multilineTexts.length}条消息`);
+                            return;
+                        } else {
+                            // 原有的单条消息或多条消息模式
+                            const items = [] as any[];
 
                         if (isMultipleMessages) {
                             // 多条消息模式
@@ -658,6 +652,7 @@ class ZyPlugin extends Plugin {
                         const end = Date.now();
                         const mode = isMultipleMessages ? '语录' : (hasCustomText ? '造谣' : '语录');
                         console.log(`${mode}生成耗时: ${end - start}ms`);
+                        }
                     } catch (error) {
                         console.error(`语录生成失败: ${error}`);
                         await msg.edit({ text: `语录生成失败: ${error}` });
