@@ -38,6 +38,9 @@ const help_text = `
 - 替换消息文本
 使用 <code>${commandName} [自定义文本]</code> 回复一条消息，将原消息文本替换为自定义文本
 
+- 多句造谣
+使用 <code>${commandName}</code> 换行后输入多行文本，每行生成一个造谣贴纸（造谣同一个用户）
+
 - 记录同一人的多条消息
 使用 <code>${commandName} [消息数]</code> 回复一条消息，从该消息开始往前记录该用户的多条消息 ⚠️ 不得超过 10 条
 
@@ -154,39 +157,57 @@ class ZyPlugin extends Plugin {
                 const start = Date.now();
 
                 // 解析命令参数
-                const msgText = msg.message.trim();
-                const args = msgText.split(/\s+/);
+                const msgText = msg.message;
+                const trimmedText = msgText.trim();
+                const args = trimmedText.split(/\s+/);
 
                 let count = 1;
                 let isSamePerson = false;
                 let isMultipleMessages = false;
                 let customText = "";
+                let isMultilineMode = false;
+                let multilineTexts: string[] = [];
                 let valid = false;
 
-                // 判断参数类型
-                if (!args[1]) {
-                    // 没有参数，原有的复刻原消息功能
-                    valid = true;
-                } else if (/^\d+$/.test(args[1])) {
-                    // 第一个参数是纯数字
-                    count = parseInt(args[1]);
-                    if (args[2] === "f") {
-                        // .zy n f - 记录群内最新n条消息（类似yvlu n）
-                        isMultipleMessages = true;
-                        isSamePerson = false;
-                    } else if (!args[2]) {
-                        // .zy n - 记录同一人最新n条消息
-                        isMultipleMessages = true;
-                        isSamePerson = true;
-                    } else {
-                        // .zy n xxx - 当作自定义文本处理
-                        customText = msgText.substring(args[0].length).trim();
+                // 检查是否为多行模式：.zy后面直接是换行
+                const commandMatch = msgText.match(/^\.zy(\r?\n)/);
+                if (commandMatch) {
+                    // 多行模式
+                    const lines = msgText.split(/\r?\n/).slice(1); // 去掉第一行的.zy命令
+                    multilineTexts = lines.filter(line => line.trim().length > 0).map(line => line.trim());
+                    if (multilineTexts.length > 0) {
+                        isMultilineMode = true;
+                        valid = true;
                     }
-                    valid = true;
-                } else {
-                    // 第一个参数不是纯数字，当作自定义文本
-                    customText = msgText.substring(args[0].length).trim();
-                    valid = true;
+                }
+
+                // 如果不是多行模式，则执行原有的参数判断逻辑
+                if (!isMultilineMode) {
+                    // 判断参数类型
+                    if (!args[1]) {
+                        // 没有参数，原有的复刻原消息功能
+                        valid = true;
+                    } else if (/^\d+$/.test(args[1])) {
+                        // 第一个参数是纯数字
+                        count = parseInt(args[1]);
+                        if (args[2] === "f") {
+                            // .zy n f - 记录群内最新n条消息（类似yvlu n）
+                            isMultipleMessages = true;
+                            isSamePerson = false;
+                        } else if (!args[2]) {
+                            // .zy n - 记录同一人最新n条消息
+                            isMultipleMessages = true;
+                            isSamePerson = true;
+                        } else {
+                            // .zy n xxx - 当作自定义文本处理
+                            customText = trimmedText.substring(args[0].length).trim();
+                        }
+                        valid = true;
+                    } else {
+                        // 第一个参数不是纯数字，当作自定义文本
+                        customText = trimmedText.substring(args[0].length).trim();
+                        valid = true;
+                    }
                 }
 
                 if (valid) {
@@ -203,15 +224,128 @@ class ZyPlugin extends Plugin {
 
                     const hasCustomText = customText.length > 0;
                     await msg.edit({
-                        text: isMultipleMessages
-                            ? "正在生成语录贴纸..."
-                            : hasCustomText
-                                ? "正在生成造谣贴纸..."
-                                : "正在生成语录贴纸..."
+                        text: isMultilineMode
+                            ? `正在生成${multilineTexts.length}个造谣贴纸...`
+                            : isMultipleMessages
+                                ? "正在生成语录贴纸..."
+                                : hasCustomText
+                                    ? "正在生成造谣贴纸..."
+                                    : "正在生成语录贴纸..."
                     });
 
                     try {
                         const client = await getGlobalClient();
+
+                        if (isMultilineMode) {
+                            // 多行造谣模式 - 为同一个用户生成多个贴纸
+                            const sender = (await replied.forward?.getSender()) || (await replied.getSender());
+                            if (!sender) {
+                                await msg.edit({ text: "无法获取消息发送者信息" });
+                                return;
+                            }
+
+                            // 准备用户数据
+                            const userId = sender.id.toString();
+                            const firstName = (sender as any).firstName || (sender as any).title || "";
+                            const lastName = (sender as any).lastName || "";
+                            const username = (sender as any).username || "";
+                            const emojiStatus = (sender as any).emojiStatus?.documentId?.toString() || null;
+
+                            let photo = undefined;
+                            try {
+                                const buffer = await client.downloadProfilePhoto(sender as any, {
+                                    isBig: false,
+                                });
+                                if (Buffer.isBuffer(buffer)) {
+                                    const base64 = buffer.toString("base64");
+                                    photo = {
+                                        url: `data:image/jpeg;base64,${base64}`,
+                                    };
+                                }
+                            } catch (e) {
+                                console.warn("下载用户头像失败", e);
+                            }
+
+                            // 为每一行文本生成一个贴纸
+                            for (let i = 0; i < multilineTexts.length; i++) {
+                                const textLine = multilineTexts[i];
+                                await msg.edit({ text: `正在生成第${i + 1}/${multilineTexts.length}个造谣贴纸...` });
+
+                                const items = [{
+                                    from: {
+                                        id: parseInt(userId),
+                                        first_name: firstName,
+                                        last_name: lastName || undefined,
+                                        username: username || undefined,
+                                        photo,
+                                        emoji_status: emojiStatus || undefined,
+                                    },
+                                    text: textLine,
+                                    entities: [], // 多行造谣模式不支持实体
+                                    avatar: true,
+                                    media: undefined, // 多行造谣模式不包含媒体
+                                }];
+
+                                const quoteData = {
+                                    type: "quote",
+                                    format: "webp",
+                                    backgroundColor: "#1b1429",
+                                    width: 512,
+                                    height: 768,
+                                    scale: 2,
+                                    emojiBrand: "apple",
+                                    messages: items,
+                                };
+
+                                // 生成语录贴纸
+                                const quoteResult = await generateQuote(quoteData);
+                                const imageBuffer = quoteResult.buffer;
+                                const imageExt = quoteResult.ext;
+
+                                // 验证图片数据
+                                if (!imageBuffer || imageBuffer.length === 0) {
+                                    await msg.edit({ text: `生成第${i + 1}个贴纸时图片数据为空` });
+                                    return;
+                                }
+
+                                try {
+                                    const file = new CustomFile(
+                                        `sticker.${imageExt}`,
+                                        imageBuffer.length,
+                                        "",
+                                        imageBuffer
+                                    );
+
+                                    // 发送贴纸
+                                    const stickerAttr = new Api.DocumentAttributeSticker({
+                                        alt: "fake_quote",
+                                        stickerset: new Api.InputStickerSetEmpty(),
+                                    });
+
+                                    await client.sendFile(msg.peerId, {
+                                        file,
+                                        forceDocument: false,
+                                        attributes: [stickerAttr],
+                                        replyTo: replied?.id,
+                                    });
+
+                                    // 在发送每个贴纸之间添加小延迟，避免过快发送
+                                    if (i < multilineTexts.length - 1) {
+                                        await sleep(500);
+                                    }
+                                } catch (fileError) {
+                                    console.error(`发送第${i + 1}个文件失败: ${fileError}`);
+                                    await msg.edit({ text: `发送第${i + 1}个文件失败: ${fileError}` });
+                                    return;
+                                }
+                            }
+
+                            await msg.delete();
+                            const end = Date.now();
+                            console.log(`多行造谣生成耗时: ${end - start}ms，共${multilineTexts.length}个贴纸`);
+                            return;
+                        }
+
                         const items = [] as any[];
 
                         if (isMultipleMessages) {
