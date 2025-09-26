@@ -155,6 +155,7 @@ class ZyPlugin extends Plugin {
     > = {
             zy: async (msg: Api.Message, trigger?: Api.Message) => {
                 const start = Date.now();
+                console.log("🚀 ZY插件开始执行，消息ID:", msg.id);
 
                 // 解析命令参数
                 const msgText = msg.message;
@@ -169,16 +170,26 @@ class ZyPlugin extends Plugin {
                 let multilineTexts: string[] = [];
                 let valid = false;
 
-                // 检查是否为多行模式：.zy后面直接是换行
+                // 检查是否为多行模式：命令后面直接是换行
+                console.log("🔍 检查多行模式 - 原始消息文本:", JSON.stringify(msgText));
                 const commandMatch = msgText.match(/^\.[a-zA-Z0-9]+(\r?\n)/);
+                console.log("🔍 正则匹配结果:", commandMatch);
                 if (commandMatch) {
+                    console.log("✅ 检测到多行模式");
                     // 多行模式
-                    const lines = msgText.split(/\r?\n/).slice(1); // 去掉第一行的.zy命令
+                    const lines = msgText.split(/\r?\n/).slice(1); // 去掉第一行的命令
+                    console.log("🔍 分割后的行数组:", lines);
                     multilineTexts = lines.filter(line => line.trim().length > 0).map(line => line.trim());
+                    console.log("🔍 过滤后的文本行:", multilineTexts);
                     if (multilineTexts.length > 0) {
                         isMultilineMode = true;
                         valid = true;
+                        console.log("✅ 多行模式激活，有效文本行数:", multilineTexts.length);
+                    } else {
+                        console.log("❌ 多行模式检测到但没有有效文本行");
                     }
+                } else {
+                    console.log("❌ 未检测到多行模式格式");
                 }
 
                 // 如果不是多行模式，则执行原有的参数判断逻辑
@@ -210,12 +221,17 @@ class ZyPlugin extends Plugin {
                     }
                 }
 
+                console.log("🔍 解析结果: valid=" + valid + ", multiline=" + isMultilineMode + ", lines=" + multilineTexts.length);
+
                 if (valid) {
+                    console.log("✅ 命令有效，开始处理");
                     let replied = await msg.getReplyMessage();
                     if (!replied) {
+                        console.log("❌ 没有回复消息");
                         await msg.edit({ text: "请回复一条消息" });
                         return;
                     }
+                    console.log("✅ 找到回复消息，ID:", replied.id);
 
                     if (isMultipleMessages && count > 10) {
                         await msg.edit({ text: "太多了 哒咩" });
@@ -237,6 +253,7 @@ class ZyPlugin extends Plugin {
                         const client = await getGlobalClient();
 
                         if (isMultilineMode) {
+                            console.log("🚀 开始处理多行造谣模式");
                             // 多行造谣模式 - 为同一个用户生成一张包含多个消息的贴纸
                             const sender = (await replied.forward?.getSender()) || (await replied.getSender());
                             if (!sender) {
@@ -267,8 +284,10 @@ class ZyPlugin extends Plugin {
                             }
 
                             // 为每一行文本创建消息项
+                            console.log("📝 开始创建消息项，用户:", firstName || username || userId);
                             const items = [];
                             for (const textLine of multilineTexts) {
+                                console.log("📝 添加文本行:", textLine);
                                 items.push({
                                     from: {
                                         id: parseInt(userId),
@@ -284,6 +303,7 @@ class ZyPlugin extends Plugin {
                                     media: undefined, // 多行造谣模式不包含媒体
                                 });
                             }
+                            console.log("📝 消息项创建完成，总数:", items.length);
 
                             const quoteData = {
                                 type: "quote",
@@ -295,19 +315,24 @@ class ZyPlugin extends Plugin {
                                 emojiBrand: "apple",
                                 messages: items,
                             };
+                            console.log("🎨 开始调用quote API，消息数:", items.length);
 
                             // 生成语录贴纸
                             const quoteResult = await generateQuote(quoteData);
+                            console.log("🎨 quote API调用完成，图片长度:", quoteResult.buffer?.length);
                             const imageBuffer = quoteResult.buffer;
                             const imageExt = quoteResult.ext;
 
                             // 验证图片数据
+                            console.log("🔍 验证图片数据，长度:", imageBuffer?.length);
                             if (!imageBuffer || imageBuffer.length === 0) {
+                                console.error("❌ 图片数据为空");
                                 await msg.edit({ text: "生成的图片数据为空" });
                                 return;
                             }
 
                             try {
+                                console.log("📤 准备发送贴纸文件");
                                 const file = new CustomFile(
                                     `sticker.${imageExt}`,
                                     imageBuffer.length,
@@ -321,22 +346,25 @@ class ZyPlugin extends Plugin {
                                     stickerset: new Api.InputStickerSetEmpty(),
                                 });
 
+                                console.log("📤 开始发送文件到Telegram");
                                 await client.sendFile(msg.peerId, {
                                     file,
                                     forceDocument: false,
                                     attributes: [stickerAttr],
                                     replyTo: replied?.id,
                                 });
+                                console.log("✅ 贴纸发送成功");
                             } catch (fileError) {
-                                console.error(`发送文件失败: ${fileError}`);
+                                console.error(`❌ 发送文件失败: ${fileError}`);
                                 await msg.edit({ text: `发送文件失败: ${fileError}` });
                                 return;
                             }
 
+                            console.log("🗑️ 删除原始命令消息");
                             await msg.delete();
 
                             const end = Date.now();
-                            console.log(`多行造谣生成耗时: ${end - start}ms，共${multilineTexts.length}条消息`);
+                            console.log(`✅ 多行造谣生成完成，耗时: ${end - start}ms，共${multilineTexts.length}条消息`);
                             return;
                         } else {
                             // 原有的单条消息或多条消息模式
