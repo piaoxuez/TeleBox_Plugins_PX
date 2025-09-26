@@ -717,7 +717,7 @@ async function createTGPage(title: string, text: string): Promise<string | null>
 
 async function chatOpenAI(p: Provider, model: string, msgs: { role: string; content: string }[], maxTokens?: number, useSearch?: boolean) {
     const url = trimBase(p.baseUrl) + "/v1/chat/completions";
-    const body: any = { model, messages: msgs, max_tokens: maxTokens || 1024 };
+    const body: any = { model, messages: msgs, max_tokens: maxTokens || 8192 };
     if (useSearch && p.baseUrl?.includes('api.openai.com')) {
         body.tools = [{
             type: "function",
@@ -753,7 +753,7 @@ async function chatOpenAI(p: Provider, model: string, msgs: { role: string; cont
 }
 async function chatClaude(p: Provider, model: string, msgs: { role: string; content: string }[], maxTokens?: number, useSearch?: boolean) {
     const url = trimBase(p.baseUrl) + "/v1/messages";
-    const body: any = { model, max_tokens: maxTokens || 1024, messages: msgs.map(m => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content })) };
+    const body: any = { model, max_tokens: maxTokens || 8192, messages: msgs.map(m => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content })) };
     if (useSearch && p.baseUrl?.includes('api.anthropic.com')) {
         body.tools = [{
             type: "web_search_20241220",
@@ -877,7 +877,7 @@ async function chatVisionClaude(p: Provider, model: string, imageB64: string, pr
     const v = await getAnthropicVersion(p);
     const body = {
         model,
-        max_tokens: 1024,
+        max_tokens: 8192,
         messages: [
             {
                 role: "user",
