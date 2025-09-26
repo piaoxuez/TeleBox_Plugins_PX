@@ -172,7 +172,11 @@ class ZyPlugin extends Plugin {
 
                 // 检查是否为多行模式：命令后面直接是换行
                 console.log("🔍 检查多行模式 - 原始消息文本:", JSON.stringify(msgText));
-                const commandMatch = msgText.match(/^\.[a-zA-Z0-9]+(\r?\n)/);
+                const escapedPrefixes = prefixes.map(prefix => prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+                console.log("🔍 转义后的前缀列表:", escapedPrefixes);
+                const commandRegex = new RegExp(`^(${escapedPrefixes.join('|')})[a-zA-Z0-9]+(\\r?\\n)`);
+                console.log("🔍 使用正则:", commandRegex.source);
+                const commandMatch = msgText.match(commandRegex);
                 console.log("🔍 正则匹配结果:", commandMatch);
                 if (commandMatch) {
                     console.log("✅ 检测到多行模式");
