@@ -284,7 +284,7 @@ class TraceDB {
             keep_log: true,
             big: true,
             premium_mode: false,
-            max_reactions: 1  // 默认非会员只能1个反应
+            max_reactions: 3  // 默认允许3个反应，便于调试
         };
 
         for (const [key, value] of Object.entries(defaultConfig)) {
@@ -293,6 +293,10 @@ class TraceDB {
                 this.setConfig(key, value.toString());
             }
         }
+
+        // 强制更新 max_reactions 为 3（用于调试）
+        this.setConfig('max_reactions', '3');
+        console.log(`[Trace] 🔧 强制更新 max_reactions 为 3`);
     }
 
     // 配置管理
@@ -539,7 +543,7 @@ async function generateReactionList(
     customEmojiIds?: string[],
     maxReactions: number = 1
 ): Promise<Api.TypeReaction[]> {
-    // const reactions: Api.TypeReaction[] = [];
+    console.log(`[Trace] 🔧 生成反应: 原生[${emojis.join(', ')}] 自定义[${(customEmojiIds || []).join(', ')}] 限制=${maxReactions}`);
 
     // 合并所有表情（普通和自定义）
     const allReactions: Api.TypeReaction[] = [];
@@ -553,7 +557,7 @@ async function generateReactionList(
                 });
                 allReactions.push(reaction);
             } catch (error: any) {
-                console.error(`[Trace] 创建原生反应失败 ${emoji}:`, error.message);
+                console.error(`[Trace] 🔧 ❌ 创建原生反应失败 ${emoji}:`, error.message);
             }
         }
     }
@@ -567,15 +571,19 @@ async function generateReactionList(
                 });
                 allReactions.push(reaction);
             } catch (error: any) {
-                console.error(`[Trace] 创建自定义表情失败 ${customId}:`, error.message);
+                console.error(`[Trace] 🔧 ❌ 创建自定义表情失败 ${customId}:`, error.message);
             }
         }
     }
 
     // 根据maxReactions限制返回的反应数量
-    // 会员模式可以同时显示多个反应，非会员只能显示1个
     const limitedReactions = allReactions.slice(0, maxReactions);
 
+    if (limitedReactions.length !== allReactions.length) {
+        console.log(`[Trace] 🔧 ⚠️ 反应被限制: ${allReactions.length} -> ${limitedReactions.length}`);
+    }
+
+    console.log(`[Trace] 🔧 ✅ 生成完成: ${limitedReactions.length} 个反应`);
     return limitedReactions;
 }
 
@@ -587,9 +595,12 @@ async function sendReaction(
     reactions: Api.TypeReaction[],
     big: boolean = false
 ): Promise<void> {
+    console.log(`[Trace] 📤 发送 ${reactions.length} 个反应到消息 ${messageId}`);
+
     try {
         const peer = await getEntityWithHash(client, chatId);
         if (!peer || !reactions || reactions.length === 0) {
+            console.error(`[Trace] 📤 ❌ 参数无效: peer=${!!peer}, reactions=${reactions?.length}`);
             return;
         }
 
@@ -601,8 +612,10 @@ async function sendReaction(
                 big: false,
                 addToRecent: true
             }));
+            console.log(`[Trace] 📤 ✅ 发送成功`);
         } catch (firstError: any) {
             if (big && !firstError.errorMessage?.includes('REACTION_INVALID')) {
+                console.log(`[Trace] 📤 🔄 重试 big=true`);
                 await client.invoke(new Api.messages.SendReaction({
                     peer: peer,
                     msgId: messageId,
@@ -610,12 +623,13 @@ async function sendReaction(
                     big: true,
                     addToRecent: true
                 }));
+                console.log(`[Trace] 📤 ✅ 重试成功`);
             } else {
                 throw firstError;
             }
         }
     } catch (error: any) {
-        console.error("[Trace] 发送反应失败:", error.message);
+        console.error(`[Trace] 📤 ❌ 发送失败:`, error.message);
     }
 }
 
