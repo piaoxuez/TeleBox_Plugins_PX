@@ -259,7 +259,30 @@ class ZyPlugin extends Plugin {
                         if (isMultilineMode) {
                             console.log("🚀 开始处理多行造谣模式");
                             // 多行造谣模式 - 为同一个用户生成一张包含多个消息的贴纸
-                            const sender = (await replied.forward?.getSender()) || (await replied.getSender());
+                            let sender = (await replied.forward?.getSender()) || (await replied.getSender());
+
+                            // 处理频道消息
+                            if (!sender && replied.fromId === null && replied.peerId?.channelId) {
+                                try {
+                                    const channel = await client.getEntity(replied.peerId);
+                                    sender = {
+                                        id: { toString: () => "channel_" + replied.peerId.channelId.toString() },
+                                        firstName: (channel as any).title || "频道",
+                                        lastName: "",
+                                        username: (channel as any).username || "",
+                                        emojiStatus: null
+                                    };
+                                } catch (e) {
+                                    sender = {
+                                        id: { toString: () => "channel_" + replied.peerId.channelId.toString() },
+                                        firstName: replied.postAuthor || "频道用户",
+                                        lastName: "",
+                                        username: "",
+                                        emojiStatus: null
+                                    };
+                                }
+                            }
+
                             if (!sender) {
                                 await msg.edit({ text: "无法获取消息发送者信息" });
                                 return;
@@ -274,9 +297,19 @@ class ZyPlugin extends Plugin {
 
                             let photo = undefined;
                             try {
-                                const buffer = await client.downloadProfilePhoto(sender as any, {
-                                    isBig: false,
-                                });
+                                let buffer;
+                                // 检查是否为频道消息，需要下载频道头像
+                                if (replied.fromId === null && replied.peerId?.channelId) {
+                                    const channel = await client.getEntity(replied.peerId);
+                                    buffer = await client.downloadProfilePhoto(channel, {
+                                        isBig: false,
+                                    });
+                                } else {
+                                    buffer = await client.downloadProfilePhoto(sender as any, {
+                                        isBig: false,
+                                    });
+                                }
+
                                 if (Buffer.isBuffer(buffer)) {
                                     const base64 = buffer.toString("base64");
                                     photo = {
@@ -284,7 +317,7 @@ class ZyPlugin extends Plugin {
                                     };
                                 }
                             } catch (e) {
-                                console.warn("下载用户头像失败", e);
+                                console.warn("下载头像失败", e);
                             }
 
                             // 为每一行文本创建消息项
@@ -380,7 +413,30 @@ class ZyPlugin extends Plugin {
 
                                 if (isSamePerson) {
                                     // 同一人的多条消息 - 从回复的消息开始往前获取该人的消息
-                                    const originalSender = (await replied.forward?.getSender()) || (await replied.getSender());
+                                    let originalSender = (await replied.forward?.getSender()) || (await replied.getSender());
+
+                                    // 处理频道消息
+                                    if (!originalSender && replied.fromId === null && replied.peerId?.channelId) {
+                                        try {
+                                            const channel = await client.getEntity(replied.peerId);
+                                            originalSender = {
+                                                id: { toString: () => "channel_" + replied.peerId.channelId.toString() },
+                                                firstName: (channel as any).title || "频道",
+                                                lastName: "",
+                                                username: (channel as any).username || "",
+                                                emojiStatus: null
+                                            };
+                                        } catch (e) {
+                                            originalSender = {
+                                                id: { toString: () => "channel_" + replied.peerId.channelId.toString() },
+                                                firstName: replied.postAuthor || "频道用户",
+                                                lastName: "",
+                                                username: "",
+                                                emojiStatus: null
+                                            };
+                                        }
+                                    }
+
                                     if (!originalSender) {
                                         await msg.edit({ text: "无法获取消息发送者信息" });
                                         return;
@@ -433,7 +489,30 @@ class ZyPlugin extends Plugin {
 
                                 // 处理每条消息
                                 for await (const [i, message] of messages.entries()) {
-                                    const sender = (await message.forward?.getSender()) || (await message.getSender());
+                                    let sender = (await message.forward?.getSender()) || (await message.getSender());
+
+                                    // 处理频道消息
+                                    if (!sender && message.fromId === null && message.peerId?.channelId) {
+                                        try {
+                                            const channel = await client.getEntity(message.peerId);
+                                            sender = {
+                                                id: { toString: () => "channel_" + message.peerId.channelId.toString() },
+                                                firstName: (channel as any).title || "频道",
+                                                lastName: "",
+                                                username: (channel as any).username || "",
+                                                emojiStatus: null
+                                            };
+                                        } catch (e) {
+                                            sender = {
+                                                id: { toString: () => "channel_" + message.peerId.channelId.toString() },
+                                                firstName: message.postAuthor || "频道用户",
+                                                lastName: "",
+                                                username: "",
+                                                emojiStatus: null
+                                            };
+                                        }
+                                    }
+
                                     if (!sender) continue;
 
                                     // 准备用户数据
@@ -445,9 +524,19 @@ class ZyPlugin extends Plugin {
 
                                     let photo = undefined;
                                     try {
-                                        const buffer = await client.downloadProfilePhoto(sender as any, {
-                                            isBig: false,
-                                        });
+                                        let buffer;
+                                        // 检查是否为频道消息，需要下载频道头像
+                                        if (message.fromId === null && message.peerId?.channelId) {
+                                            const channel = await client.getEntity(message.peerId);
+                                            buffer = await client.downloadProfilePhoto(channel, {
+                                                isBig: false,
+                                            });
+                                        } else {
+                                            buffer = await client.downloadProfilePhoto(sender as any, {
+                                                isBig: false,
+                                            });
+                                        }
+
                                         if (Buffer.isBuffer(buffer)) {
                                             const base64 = buffer.toString("base64");
                                             photo = {
@@ -455,7 +544,7 @@ class ZyPlugin extends Plugin {
                                             };
                                         }
                                     } catch (e) {
-                                        console.warn("下载用户头像失败", e);
+                                        console.warn("下载头像失败", e);
                                     }
 
                                     // 处理引用文本
@@ -526,7 +615,30 @@ class ZyPlugin extends Plugin {
                                 }
                             } else {
                                 // 单条消息模式（原有功能）
-                                const sender = (await replied.forward?.getSender()) || (await replied.getSender());
+                                let sender = (await replied.forward?.getSender()) || (await replied.getSender());
+
+                                // 处理频道消息
+                                if (!sender && replied.fromId === null && replied.peerId?.channelId) {
+                                    try {
+                                        const channel = await client.getEntity(replied.peerId);
+                                        sender = {
+                                            id: { toString: () => "channel_" + replied.peerId.channelId.toString() },
+                                            firstName: (channel as any).title || "频道",
+                                            lastName: "",
+                                            username: (channel as any).username || "",
+                                            emojiStatus: null
+                                        };
+                                    } catch (e) {
+                                        sender = {
+                                            id: { toString: () => "channel_" + replied.peerId.channelId.toString() },
+                                            firstName: replied.postAuthor || "频道用户",
+                                            lastName: "",
+                                            username: "",
+                                            emojiStatus: null
+                                        };
+                                    }
+                                }
+
                                 if (!sender) {
                                     await msg.edit({ text: "无法获取消息发送者信息" });
                                     return;
@@ -541,9 +653,19 @@ class ZyPlugin extends Plugin {
 
                                 let photo = undefined;
                                 try {
-                                    const buffer = await client.downloadProfilePhoto(sender as any, {
-                                        isBig: false,
-                                    });
+                                    let buffer;
+                                    // 检查是否为频道消息，需要下载频道头像
+                                    if (replied.fromId === null && replied.peerId?.channelId) {
+                                        const channel = await client.getEntity(replied.peerId);
+                                        buffer = await client.downloadProfilePhoto(channel, {
+                                            isBig: false,
+                                        });
+                                    } else {
+                                        buffer = await client.downloadProfilePhoto(sender as any, {
+                                            isBig: false,
+                                        });
+                                    }
+
                                     if (Buffer.isBuffer(buffer)) {
                                         const base64 = buffer.toString("base64");
                                         photo = {
@@ -551,7 +673,7 @@ class ZyPlugin extends Plugin {
                                         };
                                     }
                                 } catch (e) {
-                                    console.warn("下载用户头像失败", e);
+                                    console.warn("下载头像失败", e);
                                 }
 
                                 // 决定使用的文本和实体
