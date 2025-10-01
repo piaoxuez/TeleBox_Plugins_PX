@@ -23,6 +23,11 @@ const help_text = `
 使用 <code>${commandName} f [关键词]</code> 回复一条消息，搜索该用户在全部群组的聊天记录
 
 示例：<code>${commandName} f 敏感词</code>
+
+- 调查群组（不指定用户）
+使用 <code>${commandName} [关键词]</code> 不回复消息，搜索当前群组内所有人的聊天记录
+
+示例：<code>${commandName} 敏感词</code>
 `;
 
 class DcPlugin extends Plugin {
@@ -60,47 +65,54 @@ class DcPlugin extends Plugin {
                     return;
                 }
 
-                // 必须回复一条消息
+                // 检查是否回复了消息
                 let replied = await msg.getReplyMessage();
-                if (!replied) {
-                    await msg.edit({ text: "请回复一条消息" });
+                const isGroupSearch = !replied && !isGlobalSearch; // 没有回复消息且不是全局搜索，则为群组搜索
+
+                // 如果是全局搜索但没有回复消息，则报错
+                if (isGlobalSearch && !replied) {
+                    await msg.edit({ text: "全局搜索必须回复一条消息以指定用户" });
                     return;
                 }
 
                 try {
                     const client = await getGlobalClient();
 
-                    // 获取被调查用户信息
-                    let sender = (await replied.forward?.getSender()) || (await replied.getSender());
+                    let userId = "";
+                    let userName = "";
 
-                    // 处理频道消息
-                    if (!sender && replied.fromId === null && replied.peerId?.channelId) {
-                        try {
-                            const channel = await client.getEntity(replied.peerId);
-                            sender = {
-                                id: { toString: () => "channel_" + replied.peerId.channelId.toString() },
-                                firstName: (channel as any).title || "频道",
-                                lastName: "",
-                                username: (channel as any).username || "",
-                            };
-                        } catch (e) {
-                            sender = {
-                                id: { toString: () => "channel_" + replied.peerId.channelId.toString() },
-                                firstName: replied.postAuthor || "频道用户",
-                                lastName: "",
-                                username: "",
-                            };
+                    // 如果不是群组搜索，获取被调查用户信息
+                    if (!isGroupSearch) {
+                        let sender = (await replied!.forward?.getSender()) || (await replied!.getSender());
+
+                        // 处理频道消息
+                        if (!sender && replied!.fromId === null && replied!.peerId?.channelId) {
+                            try {
+                                const channel = await client.getEntity(replied!.peerId);
+                                sender = {
+                                    id: { toString: () => "channel_" + replied!.peerId.channelId.toString() },
+                                    firstName: (channel as any).title || "频道",
+                                    lastName: "",
+                                    username: (channel as any).username || "",
+                                };
+                            } catch (e) {
+                                sender = {
+                                    id: { toString: () => "channel_" + replied!.peerId.channelId.toString() },
+                                    firstName: replied!.postAuthor || "频道用户",
+                                    lastName: "",
+                                    username: "",
+                                };
+                            }
                         }
-                    }
 
-                    if (!sender) {
-                        await msg.edit({ text: "无法获取消息发送者信息" });
-                        return;
-                    }
+                        if (!sender) {
+                            await msg.edit({ text: "无法获取消息发送者信息" });
+                            return;
+                        }
 
-                    // 获取用户ID和群组ID
-                    const userId = sender.id.toString();
-                    const userName = (sender as any).firstName || (sender as any).username || "用户";
+                        userId = sender.id.toString();
+                        userName = (sender as any).firstName || (sender as any).username || "用户";
+                    }
 
                     // 正确提取群组ID
                     let groupId = "";
@@ -117,11 +129,17 @@ class DcPlugin extends Plugin {
                         }
                     }
 
-                    console.log(`📝 准备调查: 用户=${userName}(${userId}), 群组=${groupId}, 关键词=${keyword}, 全局=${isGlobalSearch}`);
+                    console.log(`📝 准备调查: 用户=${userName}(${userId}), 群组=${groupId}, 关键词=${keyword}, 全局=${isGlobalSearch}, 群组搜索=${isGroupSearch}`);
 
                     // 显示临时消息
-                    const searchScope = isGlobalSearch ? "全部群组" : "本群";
-                    await msg.edit({ text: `正在对 ${userName} 在${searchScope}进行调查...` });
+                    let tempMessage = "";
+                    if (isGroupSearch) {
+                        tempMessage = `正在对本群进行调查...`;
+                    } else {
+                        const searchScope = isGlobalSearch ? "全部群组" : "本群";
+                        tempMessage = `正在对 ${userName} 在${searchScope}进行调查...`;
+                    }
+                    await msg.edit({ text: tempMessage });
 
                     // 获取bot实体
                     let botEntity;
@@ -134,9 +152,17 @@ class DcPlugin extends Plugin {
                     }
 
                     // 构造发送给bot的命令
-                    const botCommand = isGlobalSearch
-                        ? `su ${keyword} ${userId}`
-                        : `ss ${keyword} ${userId} ${groupId}`;
+                    let botCommand = "";
+                    if (isGroupSearch) {
+                        // 群组搜索: sg keyword groupid
+                        botCommand = `sg ${keyword} ${groupId}`;
+                    } else if (isGlobalSearch) {
+                        // 全局用户搜索: su keyword userid
+                        botCommand = `su ${keyword} ${userId}`;
+                    } else {
+                        // 指定用户群组搜索: ss keyword userid groupid
+                        botCommand = `ss ${keyword} ${userId} ${groupId}`;
+                    }
                     console.log(`📤 发送给bot的命令: ${botCommand}`);
 
                     // 发送命令给bot
@@ -185,8 +211,13 @@ class DcPlugin extends Plugin {
                     const botReplyEntities = botResponse.entities || [];
 
                     // 输出调查结果
-                    const scopeText = isGlobalSearch ? "全部群组" : "本群";
-                    const headerText = `对 ${userName} 在${scopeText}调查关键词"${keyword}"的结果如下：\n\n`;
+                    let headerText = "";
+                    if (isGroupSearch) {
+                        headerText = `对本群调查关键词"${keyword}"的结果如下：\n\n`;
+                    } else {
+                        const scopeText = isGlobalSearch ? "全部群组" : "本群";
+                        headerText = `对 ${userName} 在${scopeText}调查关键词"${keyword}"的结果如下：\n\n`;
+                    }
                     const resultText = headerText + botReplyText;
 
                     // 调整实体偏移量（因为添加了头部文本）
