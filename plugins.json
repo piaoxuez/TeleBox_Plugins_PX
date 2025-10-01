@@ -26,5 +26,9 @@
     "ai": {
         "url": "https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/ai/ai.ts?raw=true",
         "desc": "增加自定义compat能力，以及吃瓜能力"
+    },
+    "dc": {
+        "url": "https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/dc/dc.ts?raw=true",
+        "desc": "调查科！"
     }
 }
