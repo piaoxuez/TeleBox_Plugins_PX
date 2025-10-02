@@ -46,6 +46,12 @@ const help_text = `
 
 - 记录群内多条消息
 使用 <code>${commandName} [消息数] f</code> 回复一条消息，从该消息开始往前记录群内多条消息 ⚠️ 不得超过 10 条
+
+- 记录同一人的指定多条消息
+使用 <code>${commandName} [n1] [n2] ...</code> 回复一条消息，记录从该消息开始往前的第n1、n2...条该用户的消息 ⚠️ 最多 10 个数字，最小为 1
+
+- 记录群内指定多条消息
+使用 <code>${commandName} [n1] [n2] ... f</code> 回复一条消息，记录从该消息开始往前的第n1、n2...条消息（不限用户） ⚠️ 最多 10 个数字，最小为 1
 `;
 
 // 转换Telegram消息实体为quote-api格式
@@ -169,6 +175,8 @@ class ZyPlugin extends Plugin {
                 let isMultilineMode = false;
                 let multilineTexts: string[] = [];
                 let valid = false;
+                let messageIndices: number[] = []; // 用于存储多个消息索引
+                let isIndicesMode = false; // 是否为指定索引模式
 
                 // 检查是否为多行模式：命令后面直接是换行
                 console.log("🔍 检查多行模式 - 原始消息文本:", JSON.stringify(msgText));
@@ -204,20 +212,58 @@ class ZyPlugin extends Plugin {
                         valid = true;
                     } else if (/^\d+$/.test(args[1])) {
                         // 第一个参数是纯数字
-                        count = parseInt(args[1]);
-                        if (args[2] === "f") {
-                            // .zy n f - 记录群内最新n条消息（类似yvlu n）
+                        // 检查是否有多个数字参数（.zy n1 n2 ... 或 .zy n1 n2 ... f）
+                        const numberArgs: number[] = [];
+                        let hasNonNumberArg = false;
+                        let lastArgIsF = false;
+
+                        for (let i = 1; i < args.length; i++) {
+                            if (/^\d+$/.test(args[i])) {
+                                const num = parseInt(args[i]);
+                                if (num < 1) {
+                                    await msg.edit({ text: "消息索引必须大于等于1" });
+                                    return;
+                                }
+                                numberArgs.push(num);
+                            } else if (args[i] === "f" && i === args.length - 1) {
+                                lastArgIsF = true;
+                                break;
+                            } else {
+                                hasNonNumberArg = true;
+                                break;
+                            }
+                        }
+
+                        // 判断是哪种模式
+                        if (numberArgs.length > 1 && !hasNonNumberArg) {
+                            // .zy n1 n2 ... 或 .zy n1 n2 ... f - 指定索引模式
+                            if (numberArgs.length > 10) {
+                                await msg.edit({ text: "最多只能指定10个数字" });
+                                return;
+                            }
+                            messageIndices = numberArgs;
+                            isIndicesMode = true;
                             isMultipleMessages = true;
-                            isSamePerson = false;
-                        } else if (!args[2]) {
-                            // .zy n - 记录同一人最新n条消息
-                            isMultipleMessages = true;
-                            isSamePerson = true;
+                            isSamePerson = !lastArgIsF;
+                            valid = true;
+                        } else if (numberArgs.length === 1 && !hasNonNumberArg) {
+                            // .zy n 或 .zy n f - 原有的连续模式
+                            count = numberArgs[0];
+                            if (lastArgIsF) {
+                                // .zy n f - 记录群内最新n条消息
+                                isMultipleMessages = true;
+                                isSamePerson = false;
+                            } else {
+                                // .zy n - 记录同一人最新n条消息
+                                isMultipleMessages = true;
+                                isSamePerson = true;
+                            }
+                            valid = true;
                         } else {
                             // .zy n xxx - 当作自定义文本处理
                             customText = trimmedText.substring(args[0].length).trim();
+                            valid = true;
                         }
-                        valid = true;
                     } else {
                         // 第一个参数不是纯数字，当作自定义文本
                         customText = trimmedText.substring(args[0].length).trim();
@@ -237,7 +283,7 @@ class ZyPlugin extends Plugin {
                     }
                     console.log("✅ 找到回复消息，ID:", replied.id);
 
-                    if (isMultipleMessages && count > 10) {
+                    if (isMultipleMessages && !isIndicesMode && count > 10) {
                         await msg.edit({ text: "太多了 哒咩" });
                         return;
                     }
@@ -443,48 +489,123 @@ class ZyPlugin extends Plugin {
                                     }
                                     const originalSenderId = originalSender.id;
 
-                                    // 从回复的消息开始往前获取更多消息来筛选同一人的
-                                    const allMessages = await msg.client?.getMessages(replied?.peerId, {
-                                        offsetId: replied!.id + 1, // 从回复消息开始往前获取
-                                        limit: count * 20, // 获取更多消息以便筛选，考虑到可能有很多其他人的消息
-                                    });
+                                    if (isIndicesMode) {
+                                        // 指定索引模式 - 获取指定位置的消息
+                                        const maxIndex = Math.max(...messageIndices);
+                                        const allMessages = await msg.client?.getMessages(replied?.peerId, {
+                                            offsetId: replied!.id + 1,
+                                            limit: maxIndex * 20, // 获取足够多的消息
+                                        });
 
-                                    if (!allMessages || allMessages.length === 0) {
-                                        await msg.edit({ text: "未找到消息" });
-                                        return;
-                                    }
-
-                                    // 筛选出同一个人的消息，按时间倒序排列
-                                    messages = [];
-                                    for (const message of allMessages) {
-                                        const msgSender = (await message.forward?.getSender()) || (await message.getSender());
-                                        if (msgSender && msgSender.id.eq(originalSenderId)) {
-                                            messages.push(message);
-                                            if (messages.length >= count) break;
+                                        if (!allMessages || allMessages.length === 0) {
+                                            await msg.edit({ text: "未找到消息" });
+                                            return;
                                         }
-                                    }
 
-                                    if (messages.length === 0) {
-                                        await msg.edit({ text: "未找到该用户的更多消息" });
-                                        return;
-                                    }
+                                        // 筛选出同一个人的消息
+                                        const userMessages: Api.Message[] = [];
+                                        for (const message of allMessages) {
+                                            const msgSender = (await message.forward?.getSender()) || (await message.getSender());
+                                            if (msgSender && msgSender.id.eq(originalSenderId)) {
+                                                userMessages.push(message);
+                                            }
+                                        }
 
-                                    // 将消息按时间正序排列，确保最早的消息在前面
-                                    messages.reverse();
+                                        if (userMessages.length === 0) {
+                                            await msg.edit({ text: "未找到该用户的更多消息" });
+                                            return;
+                                        }
+
+                                        // 根据索引提取消息
+                                        messages = [];
+                                        for (const idx of messageIndices) {
+                                            if (idx <= userMessages.length) {
+                                                messages.push(userMessages[idx - 1]);
+                                            }
+                                        }
+
+                                        if (messages.length === 0) {
+                                            await msg.edit({ text: "指定的索引超出范围" });
+                                            return;
+                                        }
+
+                                        // 将消息按时间正序排列
+                                        messages.reverse();
+                                    } else {
+                                        // 连续模式 - 从回复的消息开始往前获取更多消息来筛选同一人的
+                                        const allMessages = await msg.client?.getMessages(replied?.peerId, {
+                                            offsetId: replied!.id + 1, // 从回复消息开始往前获取
+                                            limit: count * 20, // 获取更多消息以便筛选，考虑到可能有很多其他人的消息
+                                        });
+
+                                        if (!allMessages || allMessages.length === 0) {
+                                            await msg.edit({ text: "未找到消息" });
+                                            return;
+                                        }
+
+                                        // 筛选出同一个人的消息，按时间倒序排列
+                                        messages = [];
+                                        for (const message of allMessages) {
+                                            const msgSender = (await message.forward?.getSender()) || (await message.getSender());
+                                            if (msgSender && msgSender.id.eq(originalSenderId)) {
+                                                messages.push(message);
+                                                if (messages.length >= count) break;
+                                            }
+                                        }
+
+                                        if (messages.length === 0) {
+                                            await msg.edit({ text: "未找到该用户的更多消息" });
+                                            return;
+                                        }
+
+                                        // 将消息按时间正序排列，确保最早的消息在前面
+                                        messages.reverse();
+                                    }
                                 } else {
                                     // 群内的多条消息 - 从回复的消息开始往前获取
-                                    messages = await msg.client?.getMessages(replied?.peerId, {
-                                        offsetId: replied!.id + 1, // 从回复消息开始往前获取
-                                        limit: count,
-                                    });
+                                    if (isIndicesMode) {
+                                        // 指定索引模式
+                                        const maxIndex = Math.max(...messageIndices);
+                                        const allMessages = await msg.client?.getMessages(replied?.peerId, {
+                                            offsetId: replied!.id + 1,
+                                            limit: maxIndex,
+                                        });
 
-                                    if (!messages || messages.length === 0) {
-                                        await msg.edit({ text: "未找到消息" });
-                                        return;
+                                        if (!allMessages || allMessages.length === 0) {
+                                            await msg.edit({ text: "未找到消息" });
+                                            return;
+                                        }
+
+                                        // 根据索引提取消息
+                                        messages = [];
+                                        for (const idx of messageIndices) {
+                                            if (idx <= allMessages.length) {
+                                                messages.push(allMessages[idx - 1]);
+                                            }
+                                        }
+
+                                        if (messages.length === 0) {
+                                            await msg.edit({ text: "指定的索引超出范围" });
+                                            return;
+                                        }
+
+                                        // 将消息按时间正序排列
+                                        messages.reverse();
+                                    } else {
+                                        // 连续模式
+                                        messages = await msg.client?.getMessages(replied?.peerId, {
+                                            offsetId: replied!.id + 1, // 从回复消息开始往前获取
+                                            limit: count,
+                                        });
+
+                                        if (!messages || messages.length === 0) {
+                                            await msg.edit({ text: "未找到消息" });
+                                            return;
+                                        }
+
+                                        // 将消息按时间正序排列，确保最早的消息在前面
+                                        messages.reverse();
                                     }
-
-                                    // 将消息按时间正序排列，确保最早的消息在前面
-                                    messages.reverse();
                                 }
 
                                 // 处理每条消息
