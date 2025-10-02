@@ -1044,7 +1044,12 @@ class TracePlugin extends Plugin {
 
                     // 计算命令前缀的字节长度，用于调整实体偏移量
                     const lines = msg.text?.trim()?.split(/\r?\n/g) || [];
-                    const fullLine = lines[0] || "";
+                    let fullLine = lines[0] || "";
+
+                    // 统一替换第一个字符为 "."（如果第一个字符是 prefixes 中的一个）
+                    if (fullLine.length > 0 && prefixes.includes(fullLine[0])) {
+                        fullLine = "." + fullLine.substring(1);
+                    }
 
                     // 找到表情文本在完整命令中的起始位置
                     const emojiStartIndex = fullLine.indexOf(allText);
