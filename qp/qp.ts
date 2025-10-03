@@ -333,6 +333,7 @@ class QpPlugin extends Plugin {
             // 发送最终消息
             const client = await getGlobalClient();
             if (client) {
+
                 // 特定群组处理：让求片消息回复指定消息
                 const chatId = msg.chatId?.toString();
                 let replyToId: number | undefined = undefined;
