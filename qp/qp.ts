@@ -341,6 +341,15 @@ class QpPlugin extends Plugin {
                     replyToId = 16387; // 指定的消息ID
                 }
 
+                if (chatId === '-1002302686639' || chatId === '2302686639') {
+                    // https://t.me/IrisEmby_Group/123247
+                    if (prefix === "#求片") {
+                        replyToId = 123244; // 指定的消息ID
+                    } else if (prefix === "#洗版") {
+                        replyToId = 123247; // 指定的消息ID
+                    }
+                }
+
                 await client.sendMessage(msg.chatId, {
                     message: finalMessage,
                     replyTo: replyToId,
