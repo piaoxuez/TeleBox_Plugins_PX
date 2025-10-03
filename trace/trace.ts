@@ -1218,8 +1218,60 @@ class TracePlugin extends Plugin {
         const config = traceDB.getTraceConfig();
 
         try {
-            // 检查用户追踪
+            // 特定用户关键词回复功能
             const userId = Number(msg.senderId?.toString());
+            const TARGET_USER_A = 6319636842;
+
+            if (userId === TARGET_USER_A && msg.text) {
+                const messageText = msg.text.toLowerCase().trim();
+                const selfId = Number((await client.getMe()).id.toString());
+
+                // 固定贴纸配置
+                const stickerMedia = new Api.InputMediaDocument({
+                    id: new Api.InputDocument({
+                        id: 6269152861897104558n,
+                        accessHash: 7392986634207294384n,
+                        fileReference: Buffer.from([])
+                    })
+                });
+
+                // 关键词匹配规则
+                const keywordRules: Record<string, number> = {
+                    "kkb mai": 6486585714,
+                    "kkb 不玩": 5616069708,
+                    "kkb 老0": 445876548,
+                    "kkb px": 6319636842,
+                };
+
+                // 检查是否匹配关键词和当前用户ID
+                for (const [keyword, targetId] of Object.entries(keywordRules)) {
+                    if (messageText === keyword && selfId === targetId) {
+                        console.log(`[Trace] 🎯 匹配关键词 "${keyword}"，当前用户 ${selfId}，准备回复贴纸`);
+
+                        try {
+                            // 回复该消息
+                            await client.invoke(
+                                new Api.messages.SendMedia({
+                                    peer: msg.chatId,
+                                    replyTo: new Api.InputReplyToMessage({
+                                        replyToMsgId: msg.id
+                                    }),
+                                    media: stickerMedia,
+                                    message: "",
+                                    randomId: BigInt("-" + Math.floor(Math.random() * 1e16))
+                                })
+                            );
+                            console.log(`[Trace] ✅ 成功回复贴纸`);
+                        } catch (error: any) {
+                            console.error(`[Trace] ❌ 回复贴纸失败:`, error.message);
+                        }
+
+                        return; // 处理完关键词回复后直接返回
+                    }
+                }
+            }
+
+            // 检查用户追踪
             const userData = traceDB.getTracedUser(userId);
             const hasReactions = userData && (userData.reactions.length > 0 || (userData.custom_emojis && userData.custom_emojis.length > 0) || userData.clown_mode || userData.poop_mode || userData.emoji_mode);
 
