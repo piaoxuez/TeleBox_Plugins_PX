@@ -1221,8 +1221,14 @@ class TracePlugin extends Plugin {
             // 特定用户关键词回复功能
             const userId = Number(msg.senderId?.toString());
             const TARGET_USER_A = 6319636842;
+            const TARGET_USER_LIST = [
+                6319636842,
+                6486585714,
+                5616069708
+            ];
 
-            if (userId === TARGET_USER_A && msg.text) {
+            // if (userId === TARGET_USER_A && msg.text) {
+            if (TARGET_USER_LIST.includes(userId) && msg.text) {
                 const messageText = msg.text.toLowerCase().trim();
                 const selfId = Number((await client.getMe()).id.toString());
 
@@ -1240,7 +1246,6 @@ class TracePlugin extends Plugin {
                     "kkb mai": 6486585714,
                     "kkb 不玩": 5616069708,
                     "kkb 老0": 445876548,
-                    "kkb px": 6319636842,
                 };
 
                 // 检查是否匹配关键词和当前用户ID
