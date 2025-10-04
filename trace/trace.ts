@@ -1234,11 +1234,13 @@ class TracePlugin extends Plugin {
                 const selfId = Number((await client.getMe()).id.toString());
 
                 // 固定贴纸配置
+                const existingBuffer = Buffer.from([0x03, 0x00, 0x00, 0xa4, 0xf7, 0x68, 0xe0, 0x85, 0x93, 0x91, 0xdd, 0x27, 0x94, 0x19, 0x43, 0xd2, 0xf8, 0x92, 0xd2, 0x97, 0x85, 0xb5, 0xc5, 0xd4, 0xb8]);
+
                 const stickerMedia = new Api.InputMediaDocument({
                     id: new Api.InputDocument({
                         id: 6269152861897104558n,
                         accessHash: 7392986634207294384n,
-                        fileReference: Buffer.from([])
+                        fileReference: existingBuffer
                     })
                 });
 
