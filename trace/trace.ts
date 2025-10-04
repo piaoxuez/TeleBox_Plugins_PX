@@ -1238,6 +1238,7 @@ class TracePlugin extends Plugin {
                     "kkb mai": 6486585714,
                     "kkb 不玩": 5616069708,
                     "kkb 老0": 445876548,
+                    "kkb 卡比": 937606991,
                     // "kkb px": 6319636842,
                 };
 
