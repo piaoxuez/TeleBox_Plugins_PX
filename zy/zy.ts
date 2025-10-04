@@ -291,11 +291,11 @@ class ZyPlugin extends Plugin {
                     const hasCustomText = customText.length > 0;
                     await msg.edit({
                         text: isMultilineMode
-                            ? `正在生成${multilineTexts.length}个造谣贴纸...`
+                            ? `正在生成${multilineTexts.length}个语录...`
                             : isMultipleMessages
                                 ? "正在生成语录贴纸..."
                                 : hasCustomText
-                                    ? "正在生成造谣贴纸..."
+                                    ? "正在生成语录贴纸..."
                                     : "正在生成语录贴纸..."
                     });
 

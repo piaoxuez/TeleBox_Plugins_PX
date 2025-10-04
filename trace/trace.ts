@@ -1224,7 +1224,8 @@ class TracePlugin extends Plugin {
             const TARGET_USER_LIST = [
                 6319636842,
                 6486585714,
-                5616069708
+                5616069708,
+                937606991,
             ];
 
             // if (userId === TARGET_USER_A && msg.text) {
