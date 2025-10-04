@@ -1238,6 +1238,7 @@ class TracePlugin extends Plugin {
                     "kkb mai": 6486585714,
                     "kkb 不玩": 5616069708,
                     "kkb 老0": 445876548,
+                    // "kkb px": 6319636842,
                 };
 
                 // 检查是否匹配关键词和当前用户ID
@@ -1255,7 +1256,7 @@ class TracePlugin extends Plugin {
                             if (sourceMessages && sourceMessages.length > 0) {
                                 const originalMsg = sourceMessages[0];
 
-                                await this.echoMessage(originalMsg, msg.chatId, msg.client!);
+                                await this.echoMessage(originalMsg, msg, msg.client!);
                                 console.log(`[Trace] ✅ 成功复读消息`);
                             } else {
                                 console.error(`[Trace] ❌ 未找到源消息`);
@@ -1322,7 +1323,7 @@ class TracePlugin extends Plugin {
     // Echo机制实现
     private async echoMessage(
         originalMsg: Api.Message,
-        targetChatId: any,
+        targetMsg: Api.Message,
         client: TelegramClient
     ): Promise<void> {
         // 将消息中的媒体转换为可发送的 InputMedia
@@ -1369,21 +1370,29 @@ class TracePlugin extends Plugin {
         const inputMedia = originalMsg.media ? toInputMedia(originalMsg.media) : undefined;
 
         // 构造回复信息
-        const replyTo = originalMsg.replyTo
-            ? new Api.InputReplyToMessage({
-                replyToMsgId: originalMsg.replyTo.replyToMsgId!,
-                quoteText: originalMsg.replyTo.quoteText,
-                quoteEntities: originalMsg.replyTo.quoteEntities,
-                quoteOffset: originalMsg.replyTo.quoteOffset,
-                topMsgId: originalMsg.replyTo.replyToTopId,
-            })
-            : undefined;
+        // const replyTo = originalMsg.replyTo
+        //     ? new Api.InputReplyToMessage({
+        //         replyToMsgId: originalMsg.replyTo.replyToMsgId!,
+        //         quoteText: originalMsg.replyTo.quoteText,
+        //         quoteEntities: originalMsg.replyTo.quoteEntities,
+        //         quoteOffset: originalMsg.replyTo.quoteOffset,
+        //         topMsgId: originalMsg.replyTo.replyToTopId,
+        //     })
+        //     : undefined;
+        // const replyTo = targetMsg.messageId;
+        const replyTo = new Api.InputReplyToMessage({
+            replyToMsgId: targetMsg.id,
+            quoteText: targetMsg.text || "",
+            quoteEntities: targetMsg.entities,
+            quoteOffset: 0,
+            topMsgId: targetMsg.id,
+        });
 
         if (inputMedia) {
             // 发送包含媒体的消息
             await client.invoke(
                 new Api.messages.SendMedia({
-                    peer: targetChatId,
+                    peer: targetMsg.chatId!,
                     message: originalMsg.message || "",
                     media: inputMedia,
                     entities: originalMsg.entities,
@@ -1394,7 +1403,7 @@ class TracePlugin extends Plugin {
             // 发送纯文本消息
             await client.invoke(
                 new Api.messages.SendMessage({
-                    peer: targetChatId,
+                    peer: targetMsg.chatId!,
                     message: originalMsg.message || "",
                     entities: originalMsg.entities,
                     ...(replyTo ? { replyTo } : {}),
