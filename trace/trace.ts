@@ -1238,7 +1238,6 @@ class TracePlugin extends Plugin {
                     "kkb mai": 6486585714,
                     "kkb 不玩": 5616069708,
                     "kkb 老0": 445876548,
-                    "kkb px": 6319636842,
                 };
 
                 // 检查是否匹配关键词和当前用户ID
