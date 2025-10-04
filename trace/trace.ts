@@ -1233,45 +1233,36 @@ class TracePlugin extends Plugin {
                 const messageText = msg.text.toLowerCase().trim();
                 const selfId = Number((await client.getMe()).id.toString());
 
-                // 固定贴纸配置
-                const existingBuffer = Buffer.from([0x03, 0x00, 0x00, 0xa4, 0xf7, 0x68, 0xe0, 0x85, 0x93, 0x91, 0xdd, 0x27, 0x94, 0x19, 0x43, 0xd2, 0xf8, 0x92, 0xd2, 0x97, 0x85, 0xb5, 0xc5, 0xd4, 0xb8]);
-
-                const stickerMedia = new Api.InputMediaDocument({
-                    id: new Api.InputDocument({
-                        id: 6269152861897104558n,
-                        accessHash: 7392986634207294384n,
-                        fileReference: existingBuffer
-                    })
-                });
-
                 // 关键词匹配规则
                 const keywordRules: Record<string, number> = {
                     "kkb mai": 6486585714,
                     "kkb 不玩": 5616069708,
                     "kkb 老0": 445876548,
+                    "kkb px": 6319636842,
                 };
 
                 // 检查是否匹配关键词和当前用户ID
                 for (const [keyword, targetId] of Object.entries(keywordRules)) {
                     if (messageText === keyword && selfId === targetId) {
-                        console.log(`[Trace] 🎯 匹配关键词 "${keyword}"，当前用户 ${selfId}，准备回复贴纸`);
+                        console.log(`[Trace] 🎯 匹配关键词 "${keyword}"，当前用户 ${selfId}，准备复读消息`);
 
                         try {
-                            // 回复该消息
-                            await client.invoke(
-                                new Api.messages.SendMedia({
-                                    peer: msg.chatId,
-                                    replyTo: new Api.InputReplyToMessage({
-                                        replyToMsgId: msg.id
-                                    }),
-                                    media: stickerMedia,
-                                    message: "",
-                                    randomId: BigInt("-" + Math.floor(Math.random() * 1e16))
-                                })
-                            );
-                            console.log(`[Trace] ✅ 成功回复贴纸`);
+                            // 获取要复读的消息 (https://t.me/DBYKEMBY/158276)
+                            const sourceMessages = await msg.client?.getMessages(2289770727, {
+                                offsetId: 158277,
+                                limit: 1
+                            });
+
+                            if (sourceMessages && sourceMessages.length > 0) {
+                                const originalMsg = sourceMessages[0];
+
+                                await this.echoMessage(originalMsg, msg.chatId, msg.client!);
+                                console.log(`[Trace] ✅ 成功复读消息`);
+                            } else {
+                                console.error(`[Trace] ❌ 未找到源消息`);
+                            }
                         } catch (error: any) {
-                            console.error(`[Trace] ❌ 回复贴纸失败:`, error.message);
+                            console.error(`[Trace] ❌ 复读消息失败:`, error.message);
                         }
 
                         return; // 处理完关键词回复后直接返回
@@ -1328,6 +1319,90 @@ class TracePlugin extends Plugin {
             console.error("[Trace] 消息监听处理失败:", error.message);
         }
     };
+
+    // Echo机制实现
+    private async echoMessage(
+        originalMsg: Api.Message,
+        targetChatId: any,
+        client: TelegramClient
+    ): Promise<void> {
+        // 将消息中的媒体转换为可发送的 InputMedia
+        const toInputMedia = (
+            media: Api.TypeMessageMedia
+        ): Api.TypeInputMedia | undefined => {
+            try {
+                if (media instanceof Api.MessageMediaPhoto && media.photo) {
+                    if (media.photo instanceof Api.Photo) {
+                        const inputPhoto = new Api.InputPhoto({
+                            id: media.photo.id,
+                            accessHash: media.photo.accessHash,
+                            fileReference: media.photo.fileReference,
+                        });
+                        return new Api.InputMediaPhoto({
+                            id: inputPhoto,
+                            ...(media.spoiler ? { spoiler: true } : {}),
+                            ...(media.ttlSeconds ? { ttlSeconds: media.ttlSeconds } : {}),
+                        });
+                    }
+                }
+                if (
+                    media instanceof Api.MessageMediaDocument &&
+                    media.document &&
+                    media.document instanceof Api.Document
+                ) {
+                    const inputDoc = new Api.InputDocument({
+                        id: media.document.id,
+                        accessHash: media.document.accessHash,
+                        fileReference: media.document.fileReference,
+                    });
+                    return new Api.InputMediaDocument({
+                        id: inputDoc,
+                        ...(media.spoiler ? { spoiler: true } : {}),
+                        ...(media.ttlSeconds ? { ttlSeconds: media.ttlSeconds } : {}),
+                    });
+                }
+            } catch (e) {
+                console.warn("[r.echo] 构造 InputMedia 失败", e);
+            }
+            return undefined;
+        };
+
+        const inputMedia = originalMsg.media ? toInputMedia(originalMsg.media) : undefined;
+
+        // 构造回复信息
+        const replyTo = originalMsg.replyTo
+            ? new Api.InputReplyToMessage({
+                replyToMsgId: originalMsg.replyTo.replyToMsgId!,
+                quoteText: originalMsg.replyTo.quoteText,
+                quoteEntities: originalMsg.replyTo.quoteEntities,
+                quoteOffset: originalMsg.replyTo.quoteOffset,
+                topMsgId: originalMsg.replyTo.replyToTopId,
+            })
+            : undefined;
+
+        if (inputMedia) {
+            // 发送包含媒体的消息
+            await client.invoke(
+                new Api.messages.SendMedia({
+                    peer: targetChatId,
+                    message: originalMsg.message || "",
+                    media: inputMedia,
+                    entities: originalMsg.entities,
+                    ...(replyTo ? { replyTo } : {}),
+                })
+            );
+        } else {
+            // 发送纯文本消息
+            await client.invoke(
+                new Api.messages.SendMessage({
+                    peer: targetChatId,
+                    message: originalMsg.message || "",
+                    entities: originalMsg.entities,
+                    ...(replyTo ? { replyTo } : {}),
+                })
+            );
+        }
+    }
 }
 
 export default new TracePlugin();
