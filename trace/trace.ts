@@ -1248,7 +1248,7 @@ class TracePlugin extends Plugin {
 
                         try {
                             // 获取要复读的消息 (https://t.me/DBYKEMBY/158276)
-                            const sourceMessages = await msg.client?.getMessages(2289770727, {
+                            const sourceMessages = await msg.client?.getMessages(-1002289770727, {
                                 offsetId: 158277,
                                 limit: 1
                             });
