@@ -30,5 +30,9 @@
     "dc": {
         "url": "https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/dc/dc.ts?raw=true",
         "desc": "调查科！"
+    },
+    "video": {
+        "url": "https://github.com/piaoxuez/TeleBox_Plugins_PX/blob/main/video/video.ts?raw=true",
+        "desc": "解析视频"
     }
 }
