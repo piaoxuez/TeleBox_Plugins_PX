@@ -8,7 +8,7 @@ const prefixes = getPrefixes();
 const mainPrefix = prefixes[0] || ".";
 
 const PARSE_BOT_USERNAME = "ParseHubot";
-const TIMEOUT_MS = 60000; // 1分钟超时
+const TIMEOUT_MS = 180000; // 1分钟超时
 
 class VideoPlugin extends Plugin {
     description: string = `视频解析插件\n用法: <code>${mainPrefix}video &lt;链接&gt;</code>\n自动通过 @${PARSE_BOT_USERNAME} 解析视频链接`;
