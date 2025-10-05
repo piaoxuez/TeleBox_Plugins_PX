@@ -53,7 +53,7 @@ class VideoPlugin extends Plugin {
             let videoMessage: Api.Message | null = null;
 
             while (Date.now() - startTime < TIMEOUT_MS) {
-                await sleep(2000); // 每2秒检查一次
+                await sleep(500); // 每0.5秒检查一次
 
                 // 获取最新的消息
                 const messages = await client.getMessages(PARSE_BOT_USERNAME, {
@@ -62,9 +62,9 @@ class VideoPlugin extends Plugin {
 
                 // 查找在我们发送消息之后，机器人回复的带视频的消息
                 for (const message of messages) {
+                    // console.log("message", message.id, message.fromId, message.media, this.hasVideo(message), sentMsg.id);
                     if (
                         message.id > sentMsg.id &&
-                        message.fromId &&
                         message.media &&
                         this.hasVideo(message)
                     ) {
@@ -97,6 +97,7 @@ class VideoPlugin extends Plugin {
     }
 
     private hasVideo(message: Api.Message): boolean {
+        // console.log("return message", message);
         if (!message.media) return false;
 
         // 检查是否为视频文档
