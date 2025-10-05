@@ -11,7 +11,7 @@ const PARSE_BOT_USERNAME = "ParseHubot";
 const TIMEOUT_MS = 180000; // 1分钟超时
 
 class VideoPlugin extends Plugin {
-    description: string = `视频解析插件\n用法: <code>${mainPrefix}video &lt;链接&gt;</code>\n自动通过 @${PARSE_BOT_USERNAME} 解析视频链接`;
+    description: string = `视频解析插件\n用法: <code>${mainPrefix}video &lt;链接&gt;</code>\n或回复一条消息后使用 <code>${mainPrefix}video</code>\n自动通过 @${PARSE_BOT_USERNAME} 解析视频链接`;
 
     cmdHandlers: Record<string, (msg: Api.Message) => Promise<void>> = {
         video: async (msg: Api.Message) => await this.handleVideo(msg),
@@ -30,15 +30,33 @@ class VideoPlugin extends Plugin {
             const parts = text.split(/\s+/);
             const [, ...args] = parts;
 
-            if (args.length === 0) {
-                await msg.edit({
-                    text: `用法: <code>${mainPrefix}video &lt;链接&gt;</code>`,
-                    parseMode: "html"
-                });
-                return;
-            }
+            // 检查是否为回复模式
+            const repliedMsg = await msg.getReplyMessage();
+            let videoUrl: string;
+            let replyToMsgId: number | undefined;
 
-            const videoUrl = args.join(" ");
+            if (repliedMsg) {
+                // 回复模式：使用回复消息的文本内容
+                videoUrl = repliedMsg.text?.trim() || "";
+                if (!videoUrl) {
+                    await msg.edit({
+                        text: "❌ 回复的消息没有文本内容",
+                        parseMode: "html"
+                    });
+                    return;
+                }
+                replyToMsgId = repliedMsg.id;
+            } else {
+                // 普通模式：使用命令参数
+                if (args.length === 0) {
+                    await msg.edit({
+                        text: `用法: <code>${mainPrefix}video &lt;链接&gt;</code>\n或回复一条消息后使用 <code>${mainPrefix}video</code>`,
+                        parseMode: "html"
+                    });
+                    return;
+                }
+                videoUrl = args.join(" ");
+            }
 
             // 先将消息改为"解析中..."
             await msg.edit({ text: "解析中...", parseMode: "html" });
@@ -51,31 +69,45 @@ class VideoPlugin extends Plugin {
             // 等待机器人回复（最多1分钟）
             const startTime = Date.now();
             let videoMessage: Api.Message | null = null;
+            let parseError = false;
 
             while (Date.now() - startTime < TIMEOUT_MS) {
-                await sleep(500); // 每0.5秒检查一次
+                await sleep(2000); // 每2秒检查一次
 
                 // 获取最新的消息
                 const messages = await client.getMessages(PARSE_BOT_USERNAME, {
                     limit: 10,
                 });
 
-                // 查找在我们发送消息之后，机器人回复的带视频的消息
+                // 查找在我们发送消息之后，机器人回复的消息
                 for (const message of messages) {
-                    // console.log("message", message.id, message.fromId, message.media, this.hasVideo(message), sentMsg.id);
                     if (
-                        message.id > sentMsg.id &&
-                        message.media &&
-                        this.hasVideo(message)
+                        message.id > sentMsg.id
                     ) {
-                        videoMessage = message;
-                        break;
+                        // 检查是否包含"解析错误"
+                        const messageText = message.text?.toLowerCase() || "";
+                        if (messageText.includes("解析错误")) {
+                            parseError = true;
+                            break;
+                        }
+
+                        // 检查是否为带视频的消息
+                        if (message.media && this.hasVideo(message)) {
+                            videoMessage = message;
+                            break;
+                        }
                     }
                 }
 
-                if (videoMessage) {
+                if (videoMessage || parseError) {
                     break;
                 }
+            }
+
+            if (parseError) {
+                // 机器人返回解析错误
+                await msg.edit({ text: "解析错误", parseMode: "html" });
+                return;
             }
 
             if (!videoMessage) {
@@ -85,7 +117,7 @@ class VideoPlugin extends Plugin {
             }
 
             // 复制视频消息到当前聊天
-            await this.copyVideoMessage(videoMessage, msg, client);
+            await this.copyVideoMessage(videoMessage, msg, client, replyToMsgId);
 
         } catch (error: any) {
             console.error("[video] 插件执行失败:", error);
@@ -97,7 +129,6 @@ class VideoPlugin extends Plugin {
     }
 
     private hasVideo(message: Api.Message): boolean {
-        // console.log("return message", message);
         if (!message.media) return false;
 
         // 检查是否为视频文档
@@ -116,7 +147,8 @@ class VideoPlugin extends Plugin {
     private async copyVideoMessage(
         videoMsg: Api.Message,
         targetMsg: Api.Message,
-        client: TelegramClient
+        client: TelegramClient,
+        replyToMsgId?: number
     ): Promise<void> {
         // 将视频消息中的媒体转换为可发送的 InputMedia
         const toInputMedia = (
@@ -151,6 +183,13 @@ class VideoPlugin extends Plugin {
             // 删除原来的"解析中..."消息
             await targetMsg.delete();
 
+            // 构造回复信息（如果是回复模式）
+            const replyTo = replyToMsgId
+                ? new Api.InputReplyToMessage({
+                    replyToMsgId: replyToMsgId,
+                })
+                : undefined;
+
             // 发送视频到目标聊天
             await client.invoke(
                 new Api.messages.SendMedia({
@@ -158,6 +197,7 @@ class VideoPlugin extends Plugin {
                     message: videoMsg.message || "",
                     media: inputMedia,
                     entities: videoMsg.entities,
+                    ...(replyTo ? { replyTo } : {}),
                 })
             );
         } else {
