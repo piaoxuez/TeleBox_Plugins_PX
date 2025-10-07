@@ -1234,17 +1234,17 @@ class TracePlugin extends Plugin {
                 const selfId = Number((await client.getMe()).id.toString());
 
                 // 关键词匹配规则
-                const keywordRules: Record<string, number> = {
-                    "kkb mai": 6486585714,
-                    "kkb 不玩": 5616069708,
-                    "kkb 老0": 445876548,
-                    "kkb 卡比": 937606991,
-                    // "kkb px": 6319636842,
+                const keywordRules: Record<string, number[]> = {
+                    "kkb mai": [6486585714],
+                    "kkb 不玩": [5616069708],
+                    "kkb 老0": [445876548],
+                    "kkb 卡比": [937606991, 8066203603],
+                    "kb集团 集合": [6486585714, 5616069708, 445876548, 937606991, 8066203603],
                 };
 
                 // 检查是否匹配关键词和当前用户ID
-                for (const [keyword, targetId] of Object.entries(keywordRules)) {
-                    if (messageText === keyword && selfId === targetId) {
+                for (const [keyword, targetIds] of Object.entries(keywordRules)) {
+                    if (messageText === keyword && targetIds.includes(selfId)) {
                         console.log(`[Trace] 🎯 匹配关键词 "${keyword}"，当前用户 ${selfId}，准备复读消息`);
 
                         try {
