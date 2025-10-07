@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  telebox:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: telebox
+    # 交互式终端，用于第5步手动配置
+    stdin_open: true
+    tty: true
+    # volumes:
+    #   # 持久化Telegram会话文件（必须）
+    #   - telebox_session:/app/my_session
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    # 默认使用npm start，完成第5步配置后
+    # 可以手动改为PM2启动方式（第6步）
+    command: pm2-runtime start "npm start" --name telebox
+
+volumes:
+  telebox_session:
+    driver: local
