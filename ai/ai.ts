@@ -474,7 +474,7 @@ function parseTimeOrCount(input: string): { type: "time" | "count"; value: numbe
 
     if (/^\d+$/.test(trimmed)) {
         const count = parseInt(trimmed, 10);
-        if (count > 0 && count <= 1000) {
+        if (count > 0 && count <= 5000) {
             return { type: "count", value: count };
         }
         return null;
@@ -1364,8 +1364,11 @@ const help = `🔧 📝 <b>特性</b>
 <code>ai cg 10</code> - 总结最近10条消息
 <code>ai cg 30m</code> - 总结最近30分钟的聊天记录
 <code>ai cg 2d</code> - 总结最近2天的聊天记录
+<code>ai cg 10 https://t.me/group</code> - 总结指定群组的消息
+<code>ai cg 1h -1002122512093</code> - 总结指定群组ID的消息
 • 时间单位支持: h(小时) m(分钟) d(天)
-• 数量范围: 1-1000条消息
+• 数量范围: 1-5000条消息
+• link可选: 群组链接(https://t.me/xxx)或群组ID(-100xxx)
 
 ⚙️ <b>模型管理</b>
 <code>ai model list</code> - 查看当前模型配置
@@ -1821,9 +1824,12 @@ class AiPlugin extends Plugin {
 <code>ai cg 10</code> - 总结最近10条消息
 <code>ai cg 30m</code> - 总结最近30分钟的聊天记录
 <code>ai cg 2d</code> - 总结最近2天的聊天记录
+<code>ai cg 10 https://t.me/group</code> - 总结指定群组的消息
+<code>ai cg 1h -1002122512093</code> - 总结指定群组ID的消息
 
 时间单位支持: h(小时) m(分钟) d(天)
-数量范围: 1-1000条消息
+数量范围: 1-5000条消息
+link可选: 群组链接(https://t.me/xxx)或群组ID(-100xxx)
 
 注意: 需要先配置AI服务商才能使用此功能`;
                         await msg.edit({ text: cgHelp, parseMode: "html" });
@@ -1831,11 +1837,12 @@ class AiPlugin extends Plugin {
                     }
 
                     const param = args[0];
+                    const linkParam = args[1]; // 可选的群组链接或ID
                     const parsed = parseTimeOrCount(param);
 
                     if (!parsed) {
                         await msg.edit({
-                            text: "❌ 参数格式错误\n\n支持格式:\n• 数字 (1-1000): 获取最近N条消息\n• 时间 (如1h, 30m, 2d): 获取指定时间内的消息",
+                            text: "❌ 参数格式错误\n\n支持格式:\n• 数字 (1-5000): 获取最近N条消息\n• 时间 (如1h, 30m, 2d): 获取指定时间内的消息",
                             parseMode: "html"
                         });
                         return;
@@ -1850,29 +1857,53 @@ class AiPlugin extends Plugin {
                             return;
                         }
 
+                        // 解析目标群组
+                        let targetPeer = msg.peerId;
+                        if (linkParam) {
+                            try {
+                                // 如果是链接格式 (https://t.me/xxx)
+                                if (linkParam.startsWith('http://') || linkParam.startsWith('https://')) {
+                                    const match = linkParam.match(/t\.me\/([^/?]+)/);
+                                    if (match) {
+                                        const username = match[1];
+                                        targetPeer = await client.getEntity(username);
+                                    } else {
+                                        await msg.edit({ text: "❌ 无效的群组链接格式", parseMode: "html" });
+                                        return;
+                                    }
+                                }
+                                // 如果是群组ID格式 (-100xxx 或纯数字)
+                                else {
+                                    const chatId = linkParam.startsWith('-') ? BigInt(linkParam) : BigInt(linkParam);
+                                    targetPeer = await client.getEntity(chatId);
+                                }
+                            } catch (error: any) {
+                                await msg.edit({ text: `❌ 无法访问指定群组: ${error?.message || '未知错误'}`, parseMode: "html" });
+                                return;
+                            }
+                        }
+
                         let messages: Api.Message[] = [];
 
                         if (parsed.type === "count") {
-                            messages = await client.getMessages(msg.peerId, {
+                            messages = await client.getMessages(targetPeer, {
                                 limit: parsed.value + 10,
-                                offsetId: msg.id
                             });
-                            messages = messages.filter(m => m.id !== msg.id).slice(0, parsed.value);
+                            messages = messages.slice(0, parsed.value);
                         } else {
                             const cutoffTime = new Date(Date.now() - parsed.value * 60 * 1000);
                             let allMessages: Api.Message[] = [];
-                            let offsetId = msg.id;
+                            let offsetId = 0;
 
                             for (let i = 0; i < 20; i++) {
-                                const batch = await client.getMessages(msg.peerId, {
+                                const batch = await client.getMessages(targetPeer, {
                                     limit: 100,
-                                    offsetId: offsetId
+                                    offsetId: offsetId || undefined
                                 });
 
                                 if (!batch.length) break;
 
                                 const validMessages = batch.filter(m => {
-                                    if (m.id === msg.id) return false;
                                     return m.date && m.date >= Math.floor(cutoffTime.getTime() / 1000);
                                 });
 
@@ -1886,7 +1917,7 @@ class AiPlugin extends Plugin {
                                 offsetId = oldestInBatch.id;
                             }
 
-                            messages = allMessages.slice(0, 1000);
+                            messages = allMessages.slice(0, 5000);
                         }
 
                         if (messages.length === 0) {
