@@ -1849,8 +1849,6 @@ link可选: 群组链接(https://t.me/xxx)或群组ID(-100xxx)
                     }
 
                     try {
-                        await msg.edit({ text: "🍉 正在获取聊天记录...", parseMode: "html" });
-
                         const client = msg.client;
                         if (!client) {
                             await msg.edit({ text: "❌ 无法获取Telegram客户端", parseMode: "html" });
@@ -1859,6 +1857,9 @@ link可选: 群组链接(https://t.me/xxx)或群组ID(-100xxx)
 
                         // 解析目标群组
                         let targetPeer = msg.peerId;
+                        let targetEntity: any = null;
+                        let chatName = "当前群组";
+
                         if (linkParam) {
                             try {
                                 // 如果是链接格式 (https://t.me/xxx)
@@ -1866,7 +1867,8 @@ link可选: 群组链接(https://t.me/xxx)或群组ID(-100xxx)
                                     const match = linkParam.match(/t\.me\/([^/?]+)/);
                                     if (match) {
                                         const username = match[1];
-                                        targetPeer = await client.getEntity(username);
+                                        targetEntity = await client.getEntity(username);
+                                        targetPeer = targetEntity;
                                     } else {
                                         await msg.edit({ text: "❌ 无效的群组链接格式", parseMode: "html" });
                                         return;
@@ -1875,13 +1877,28 @@ link可选: 群组链接(https://t.me/xxx)或群组ID(-100xxx)
                                 // 如果是群组ID格式 (-100xxx 或纯数字)
                                 else {
                                     const chatId = linkParam.startsWith('-') ? BigInt(linkParam) : BigInt(linkParam);
-                                    targetPeer = await client.getEntity(chatId);
+                                    targetEntity = await client.getEntity(chatId);
+                                    targetPeer = targetEntity;
                                 }
                             } catch (error: any) {
                                 await msg.edit({ text: `❌ 无法访问指定群组: ${error?.message || '未知错误'}`, parseMode: "html" });
                                 return;
                             }
+                        } else {
+                            // 获取当前群组信息
+                            try {
+                                targetEntity = await client.getEntity(msg.peerId);
+                            } catch {
+                                // 如果获取失败也没关系，使用默认名称
+                            }
                         }
+
+                        // 获取群组名称
+                        if (targetEntity) {
+                            chatName = (targetEntity as any).title || (targetEntity as any).username || chatName;
+                        }
+
+                        await msg.edit({ text: `🍉 正在获取聊天记录...\n📍 群组: <b>${html(chatName)}</b>`, parseMode: "html" });
 
                         let messages: Api.Message[] = [];
 
@@ -1925,7 +1942,7 @@ link可选: 群组链接(https://t.me/xxx)或群组ID(-100xxx)
                             return;
                         }
 
-                        await msg.edit({ text: `🍉 正在分析 ${messages.length} 条聊天记录...`, parseMode: "html" });
+                        await msg.edit({ text: `🍉 正在分析 ${messages.length} 条聊天记录...\n📍 群组: <b>${html(chatName)}</b>`, parseMode: "html" });
 
                         const chatHistory = [];
                         for (const m of messages.reverse()) {
@@ -1970,7 +1987,7 @@ link可选: 群组链接(https://t.me/xxx)或群组ID(-100xxx)
 
                         const result = await callChat("chat", prompt, msg, 10240);
 
-                        const summary = `🍉 <b>聊天记录总结</b>\n\n📊 <b>统计信息:</b>\n• 获取消息: ${messages.length} 条\n• 有效消息: ${chatHistory.length} 条\n• 分析消息: ${finalHistory.length} 条\n• 时间范围: ${parsed.type === "time" ? `最近${param}` : `最近${param}条消息`}\n\n📝 <b>内容总结:</b>\n${result.content}\n\n<i>Powered by ${result.model}</i>`;
+                        const summary = `🍉 <b>聊天记录总结</b>\n\n📍 <b>群组:</b> ${html(chatName)}\n\n📊 <b>统计信息:</b>\n• 获取消息: ${messages.length} 条\n• 有效消息: ${chatHistory.length} 条\n• 分析消息: ${finalHistory.length} 条\n• 时间范围: ${parsed.type === "time" ? `最近${param}` : `最近${param}条消息`}\n\n📝 <b>内容总结:</b>\n${result.content}\n\n<i>Powered by ${result.model}</i>`;
 
                         await sendFinalMessage(msg, summary);
 
