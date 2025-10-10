@@ -1275,7 +1275,6 @@ class TracePlugin extends Plugin {
                                     const originalMsg = messages[0];
                                     await this.echoMessage(originalMsg, msg, msg.client!);
                                 }
-                                await this.echoMessage(originalMsg, msg, msg.client!);
                             }
                             console.log(`[Trace] ✅ 成功复读消息`);
                         } catch (error: any) {
