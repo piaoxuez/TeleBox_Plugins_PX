@@ -1258,16 +1258,23 @@ class TracePlugin extends Plugin {
                             // kj消息 https://t.me/DBYKEMBY/158592
                             // 如果keyword中包含的是kb，则复读kb消息，否则复读kj消息
                             if (keyword.includes("kb")) {
-                                const originalMsg = await msg.client?.getMessages(-1002289770727, {
+                                const messages = await msg.client?.getMessages(-1002289770727, {
                                     offsetId: 158277,
                                     limit: 1
-                                })[0];
-                                await this.echoMessage(originalMsg, msg, msg.client!);
+                                });
+                                if (messages && messages.length > 0) {
+                                    const originalMsg = messages[0];
+                                    await this.echoMessage(originalMsg, msg, msg.client!);
+                                }
                             } else {
-                                const originalMsg = await msg.client?.getMessages(-1002289770727, {
+                                const messages = await msg.client?.getMessages(-1002289770727, {
                                     offsetId: 158593,
                                     limit: 1
-                                })[0];
+                                });
+                                if (messages && messages.length > 0) {
+                                    const originalMsg = messages[0];
+                                    await this.echoMessage(originalMsg, msg, msg.client!);
+                                }
                                 await this.echoMessage(originalMsg, msg, msg.client!);
                             }
                             console.log(`[Trace] ✅ 成功复读消息`);
