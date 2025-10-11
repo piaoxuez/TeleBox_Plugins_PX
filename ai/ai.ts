@@ -474,7 +474,7 @@ function parseTimeOrCount(input: string): { type: "time" | "count"; value: numbe
 
     if (/^\d+$/.test(trimmed)) {
         const count = parseInt(trimmed, 10);
-        if (count > 0 && count <= 5000) {
+        if (count > 0 && count <= 10000) {
             return { type: "count", value: count };
         }
         return null;
@@ -1367,7 +1367,7 @@ const help = `🔧 📝 <b>特性</b>
 <code>ai cg 10 https://t.me/group</code> - 总结指定群组的消息
 <code>ai cg 1h -1002122512093</code> - 总结指定群组ID的消息
 • 时间单位支持: h(小时) m(分钟) d(天)
-• 数量范围: 1-5000条消息
+• 数量范围: 1-10000条消息
 • link可选: 群组链接(https://t.me/xxx)或群组ID(-100xxx)
 
 ⚙️ <b>模型管理</b>
@@ -1828,7 +1828,7 @@ class AiPlugin extends Plugin {
 <code>ai cg 1h -1002122512093</code> - 总结指定群组ID的消息
 
 时间单位支持: h(小时) m(分钟) d(天)
-数量范围: 1-5000条消息
+数量范围: 1-10000条消息
 link可选: 群组链接(https://t.me/xxx)或群组ID(-100xxx)
 
 注意: 需要先配置AI服务商才能使用此功能`;
@@ -1842,7 +1842,7 @@ link可选: 群组链接(https://t.me/xxx)或群组ID(-100xxx)
 
                     if (!parsed) {
                         await msg.edit({
-                            text: "❌ 参数格式错误\n\n支持格式:\n• 数字 (1-5000): 获取最近N条消息\n• 时间 (如1h, 30m, 2d): 获取指定时间内的消息",
+                            text: "❌ 参数格式错误\n\n支持格式:\n• 数字 (1-10000): 获取最近N条消息\n• 时间 (如1h, 30m, 2d): 获取指定时间内的消息",
                             parseMode: "html"
                         });
                         return;
@@ -1912,7 +1912,7 @@ link可选: 群组链接(https://t.me/xxx)或群组ID(-100xxx)
                             let allMessages: Api.Message[] = [];
                             let offsetId = 0;
 
-                            for (let i = 0; i < 20; i++) {
+                            for (let i = 0; i < 100; i++) {
                                 const batch = await client.getMessages(targetPeer, {
                                     limit: 100,
                                     offsetId: offsetId || undefined
@@ -1934,7 +1934,7 @@ link可选: 群组链接(https://t.me/xxx)或群组ID(-100xxx)
                                 offsetId = oldestInBatch.id;
                             }
 
-                            messages = allMessages.slice(0, 5000);
+                            messages = allMessages.slice(0, 10000);
                         }
 
                         if (messages.length === 0) {
@@ -1962,7 +1962,7 @@ link可选: 群组链接(https://t.me/xxx)或群组ID(-100xxx)
                         }
 
                         // 智能截断：确保prompt不会过长
-                        const maxPromptLength = 100000;
+                        const maxPromptLength = 150000;
                         const promptPrefix = `这是一段聊天记录，请你总结一下大家具体聊了什么内容。请仔细总结，这段聊天记录主要有几件事，每件事具体讲了什么，前后始末又是什么：\n\n`;
                         const promptSuffix = `\n\n开始概括，特别要注意聊天记录的时间顺序。概括结果一定要让人能够只通过聊天记录，就能比较清楚的了解这段时间发生了什么，但又不能太啰嗦，要讲究度。\n不要使用markdown返回，请使用HTML格式化（如<b>粗体</b>、<i>斜体</i>等 <h1>标题</h1>）来突出重要信息`;
                         let historyText = chatHistory.join('\n');
