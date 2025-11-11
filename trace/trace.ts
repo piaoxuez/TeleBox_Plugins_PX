@@ -1267,73 +1267,7 @@ class TracePlugin extends Plugin {
         const config = traceDB.getTraceConfig();
 
         try {
-            // 特定用户关键词回复功能
             const userId = Number(msg.senderId?.toString());
-            const TARGET_USER_LIST = [
-                6319636842,
-                6486585714,
-                5616069708,
-                937606991,
-                445876548
-            ];
-
-            // if (userId === TARGET_USER_A && msg.text) {
-            if (TARGET_USER_LIST.includes(userId) && msg.text) {
-                const messageText = msg.text.toLowerCase().trim();
-                const selfId = Number((await client.getMe()).id.toString());
-
-                // 关键词匹配规则
-                const keywordRules: Record<string, number[]> = {
-                    "kkb mai": [6486585714],
-                    "kkb 不玩": [5616069708],
-                    "kkb 老0": [445876548],
-                    "kkb 卡比": [937606991, 8066203603],
-                    "kkj mai": [6486585714],
-                    "kkj 不玩": [5616069708],
-                    "kkj 老0": [445876548],
-                    "kkj 卡比": [937606991, 8066203603],
-                    "kb集团 集合": [6486585714, 5616069708, 445876548, 937606991, 8066203603, 6319636842],
-                    "kj集团 集合": [6486585714, 5616069708, 445876548, 937606991, 8066203603, 6319636842],
-                };
-
-                // 检查是否匹配关键词和当前用户ID
-                for (const [keyword, targetIds] of Object.entries(keywordRules)) {
-                    if (messageText === keyword && targetIds.includes(selfId)) {
-                        console.log(`[Trace] 🎯 匹配关键词 "${keyword}"，当前用户 ${selfId}，准备复读消息`);
-
-                        try {
-                            // kb消息 (https://t.me/DBYKEMBY/158276)
-
-                            // kj消息 https://t.me/DBYKEMBY/158592
-                            // 如果keyword中包含的是kb，则复读kb消息，否则复读kj消息
-                            if (keyword.includes("kb")) {
-                                const messages = await msg.client?.getMessages(-1002289770727, {
-                                    offsetId: 158277,
-                                    limit: 1
-                                });
-                                if (messages && messages.length > 0) {
-                                    const originalMsg = messages[0];
-                                    await this.echoMessage(originalMsg, msg, msg.client!);
-                                }
-                            } else {
-                                const messages = await msg.client?.getMessages(-1002289770727, {
-                                    offsetId: 158593,
-                                    limit: 1
-                                });
-                                if (messages && messages.length > 0) {
-                                    const originalMsg = messages[0];
-                                    await this.echoMessage(originalMsg, msg, msg.client!);
-                                }
-                            }
-                            console.log(`[Trace] ✅ 成功复读消息`);
-                        } catch (error: any) {
-                            console.error(`[Trace] ❌ 复读消息失败:`, error.message);
-                        }
-
-                        return; // 处理完关键词回复后直接返回
-                    }
-                }
-            }
 
             // 检查用户追踪
             const userData = traceDB.getTracedUser(userId);

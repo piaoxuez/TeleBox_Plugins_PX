@@ -7,9 +7,10 @@ import {
 import path from "path";
 import fs from "fs";
 import axios from "axios";
-import { Api } from "telegram";
+import { Api, TelegramClient } from "telegram";
 import { JSONFilePreset } from "lowdb/node";
 import { getPrefixes } from "@utils/pluginManager";
+import { getGlobalClient } from "@utils/globalClient";
 
 const prefixes = getPrefixes();
 const mainPrefix = prefixes[0];
@@ -1034,6 +1035,167 @@ class TpmxPlugin extends Plugin {
 • <code>${mainPrefix}tpmx rm &lt;插件名&gt;</code> - 卸载单个插件
 • <code>${mainPrefix}tpmx rm &lt;插件名1&gt; &lt;插件名2&gt;</code> - 卸载多个插件
 `;
+
+  // 消息监听器 - 关键词回复功能
+  listenMessageHandler = async (msg: Api.Message) => {
+    if (!msg.fromId || !msg.chatId) return;
+
+    const client = await getGlobalClient();
+    if (!client) return;
+
+    try {
+      // 特定用户关键词回复功能
+      const userId = Number(msg.senderId?.toString());
+      const TARGET_USER_LIST = [
+        6319636842,
+        6486585714,
+        5616069708,
+        937606991,
+        445876548
+      ];
+
+      if (TARGET_USER_LIST.includes(userId) && msg.text) {
+        const messageText = msg.text.toLowerCase().trim();
+        const selfId = Number((await client.getMe()).id.toString());
+
+        // 关键词匹配规则
+        const keywordRules: Record<string, number[]> = {
+          "kkb mai": [6486585714],
+          "kkb 不玩": [5616069708],
+          "kkb 老0": [445876548],
+          "kkb 卡比": [937606991, 8066203603],
+          "kkj mai": [6486585714],
+          "kkj 不玩": [5616069708],
+          "kkj 老0": [445876548],
+          "kkj 卡比": [937606991, 8066203603],
+          "kb集团 集合": [6486585714, 5616069708, 445876548, 937606991, 8066203603, 6319636842],
+          "kj集团 集合": [6486585714, 5616069708, 445876548, 937606991, 8066203603, 6319636842],
+        };
+
+        // 检查是否匹配关键词和当前用户ID
+        for (const [keyword, targetIds] of Object.entries(keywordRules)) {
+          if (messageText === keyword && targetIds.includes(selfId)) {
+            console.log(`[TPMX] 🎯 匹配关键词 "${keyword}"，当前用户 ${selfId}，准备复读消息`);
+
+            try {
+              // kb消息 (https://t.me/DBYKEMBY/158276)
+              // kj消息 https://t.me/DBYKEMBY/158592
+              // 如果keyword中包含的是kb，则复读kb消息，否则复读kj消息
+              if (keyword.includes("kb")) {
+                const messages = await msg.client?.getMessages(-1002289770727, {
+                  offsetId: 158277,
+                  limit: 1
+                });
+                if (messages && messages.length > 0) {
+                  const originalMsg = messages[0];
+                  await this.echoMessage(originalMsg, msg, msg.client!);
+                }
+              } else {
+                const messages = await msg.client?.getMessages(-1002289770727, {
+                  offsetId: 158593,
+                  limit: 1
+                });
+                if (messages && messages.length > 0) {
+                  const originalMsg = messages[0];
+                  await this.echoMessage(originalMsg, msg, msg.client!);
+                }
+              }
+              console.log(`[TPMX] ✅ 成功复读消息`);
+            } catch (error: any) {
+              console.error(`[TPMX] ❌ 复读消息失败:`, error.message);
+            }
+
+            return; // 处理完关键词回复后直接返回
+          }
+        }
+      }
+    } catch (error: any) {
+      console.error("[TPMX] 消息监听处理失败:", error.message);
+    }
+  };
+
+  // Echo机制实现
+  private async echoMessage(
+    originalMsg: Api.Message,
+    targetMsg: Api.Message,
+    client: TelegramClient
+  ): Promise<void> {
+    // 将消息中的媒体转换为可发送的 InputMedia
+    const toInputMedia = (
+      media: Api.TypeMessageMedia
+    ): Api.TypeInputMedia | undefined => {
+      try {
+        if (media instanceof Api.MessageMediaPhoto && media.photo) {
+          if (media.photo instanceof Api.Photo) {
+            const inputPhoto = new Api.InputPhoto({
+              id: media.photo.id,
+              accessHash: media.photo.accessHash,
+              fileReference: media.photo.fileReference,
+            });
+            return new Api.InputMediaPhoto({
+              id: inputPhoto,
+              ...(media.spoiler ? { spoiler: true } : {}),
+              ...(media.ttlSeconds ? { ttlSeconds: media.ttlSeconds } : {}),
+            });
+          }
+        }
+        if (
+          media instanceof Api.MessageMediaDocument &&
+          media.document &&
+          media.document instanceof Api.Document
+        ) {
+          const inputDoc = new Api.InputDocument({
+            id: media.document.id,
+            accessHash: media.document.accessHash,
+            fileReference: media.document.fileReference,
+          });
+          return new Api.InputMediaDocument({
+            id: inputDoc,
+            ...(media.spoiler ? { spoiler: true } : {}),
+            ...(media.ttlSeconds ? { ttlSeconds: media.ttlSeconds } : {}),
+          });
+        }
+      } catch (e) {
+        console.warn("[TPMX] 构造 InputMedia 失败", e);
+      }
+      return undefined;
+    };
+
+    const inputMedia = originalMsg.media ? toInputMedia(originalMsg.media) : undefined;
+
+    // 构造回复信息
+    const replyTo = new Api.InputReplyToMessage({
+      replyToMsgId: targetMsg.id,
+      quoteText: targetMsg.text || "",
+      quoteEntities: targetMsg.entities,
+      quoteOffset: 0,
+      topMsgId: targetMsg.id,
+    });
+
+    if (inputMedia) {
+      // 发送包含媒体的消息
+      await client.invoke(
+        new Api.messages.SendMedia({
+          peer: targetMsg.chatId!,
+          message: originalMsg.message || "",
+          media: inputMedia,
+          entities: originalMsg.entities,
+          ...(replyTo ? { replyTo } : {}),
+        })
+      );
+    } else {
+      // 发送纯文本消息
+      await client.invoke(
+        new Api.messages.SendMessage({
+          peer: targetMsg.chatId!,
+          message: originalMsg.message || "",
+          entities: originalMsg.entities,
+          ...(replyTo ? { replyTo } : {}),
+        })
+      );
+    }
+  }
+
   cmdHandlers: Record<string, (msg: Api.Message) => Promise<void>> = {
     tpmx: async (msg) => {
       const text = msg.message;
