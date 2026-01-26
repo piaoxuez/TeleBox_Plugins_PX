@@ -14,54 +14,88 @@ type RPluginData = {
     useForward: boolean; // true: 默认转发失败再echo, false: 默认直接echo
 };
 
-// 初始化数据库
-const dbDir = createDirectoryInAssets("r");
-const dbPath = path.join(dbDir, "config.json");
-const defaultData: RPluginData = { useForward: true };
-let db: Awaited<ReturnType<typeof JSONFilePreset<RPluginData>>>;
+// 配置管理器类
+class ConfigManager {
+    private static db: any = null;
+    private static initialized = false;
+
+    private static async init(): Promise<void> {
+        if (this.initialized) return;
+
+        try {
+            const dbDir = createDirectoryInAssets("r");
+            const dbPath = path.join(dbDir, "config.json");
+            const defaultData: RPluginData = { useForward: true };
+
+            this.db = await JSONFilePreset<RPluginData>(dbPath, defaultData);
+            this.initialized = true;
+        } catch (error) {
+            console.error("[r] 初始化配置失败:", error);
+        }
+    }
+
+    static async getUseForward(): Promise<boolean> {
+        await this.init();
+        if (!this.db) return true; // 默认启用转发
+        return this.db.data.useForward ?? true;
+    }
+
+    static async setUseForward(value: boolean): Promise<boolean> {
+        await this.init();
+        if (!this.db) return false;
+
+        try {
+            this.db.data.useForward = value;
+            await this.db.write();
+            return true;
+        } catch (error) {
+            console.error("[r] 设置配置失败:", error);
+            return false;
+        }
+    }
+}
 
 class RPlugin extends Plugin {
     description: string = `复读\n回复一条消息即可复读\n<code>${mainPrefix}r [消息数] [复读次数]</code>\n\n转发模式设置：\n<code>${mainPrefix}r fw 0</code> - 禁用转发，直接使用echo模式\n<code>${mainPrefix}r fw 1</code> - 启用转发（默认），转发失败时使用echo模式`;
-
-    async init() {
-        // 初始化数据库
-        db = await JSONFilePreset<RPluginData>(dbPath, defaultData);
-    }
 
     cmdHandlers: Record<
         string,
         (msg: Api.Message, trigger?: Api.Message) => Promise<void>
     > = {
-            fw: async (msg, trigger) => {
+            r: async (msg, trigger) => {
                 const [, ...args] = msg.text.slice(1).split(" ");
-                const mode = args[1]; // args[0] is "fw", args[1] is the value
 
-                if (mode === undefined || (mode !== "0" && mode !== "1")) {
-                    const currentMode = db.data.useForward ? "1 (启用转发)" : "0 (禁用转发)";
+                // 检查是否是 fw 子命令
+                if (args[0] === "fw") {
+                    const mode = args[1];
+
+                    if (mode === undefined || (mode !== "0" && mode !== "1")) {
+                        const currentUseForward = await ConfigManager.getUseForward();
+                        const currentMode = currentUseForward ? "1 (启用转发)" : "0 (禁用转发)";
+                        await msg.edit({
+                            text: `当前转发模式: ${currentMode}\n\n使用方法：\n<code>${mainPrefix}r fw 0</code> - 禁用转发，直接使用echo\n<code>${mainPrefix}r fw 1</code> - 启用转发（默认）`,
+                            parseMode: "html"
+                        });
+                        return;
+                    }
+
+                    const useForward = mode === "1";
+                    const success = await ConfigManager.setUseForward(useForward);
+
+                    const modeText = useForward ? "启用转发（转发失败时使用echo）" : "禁用转发（直接使用echo）";
                     await msg.edit({
-                        text: `当前转发模式: ${currentMode}\n\n使用方法：\n<code>${mainPrefix}r fw 0</code> - 禁用转发，直接使用echo\n<code>${mainPrefix}r fw 1</code> - 启用转发（默认）`,
-                        parseMode: "html"
+                        text: `✅ 转发模式已设置为: ${modeText}`,
                     });
+
+                    if (trigger) {
+                        try {
+                            await trigger.delete();
+                        } catch (e) { }
+                    }
                     return;
                 }
 
-                const useForward = mode === "1";
-                db.data.useForward = useForward;
-                await db.write();
-
-                const modeText = useForward ? "启用转发（转发失败时使用echo）" : "禁用转发（直接使用echo）";
-                await msg.edit({
-                    text: `✅ 转发模式已设置为: ${modeText}`,
-                });
-
-                if (trigger) {
-                    try {
-                        await trigger.delete();
-                    } catch (e) { }
-                }
-            },
-            r: async (msg, trigger) => {
-                const [, ...args] = msg.text.slice(1).split(" ");
+                // 正常的复读逻辑
                 const count = parseInt(args[0]) || 1;
                 const repeat = parseInt(args[1]) || 1;
 
@@ -86,7 +120,7 @@ class RPlugin extends Plugin {
 
                     for (let i = 0; i < repeat; i++) {
                         // 检查是否启用转发模式
-                        const useForward = db.data.useForward;
+                        const useForward = await ConfigManager.getUseForward();
 
                         if (useForward) {
                             // 首先尝试正常转发
